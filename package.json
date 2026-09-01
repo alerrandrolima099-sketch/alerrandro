@@ -1,0 +1,19 @@
+{
+  "name": "whatsapp-saas",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=@whatsapp-saas/api",
+    "dev:worker": "npm run dev --workspace=@whatsapp-saas/worker",
+    "dev:web": "npm run dev --workspace=@whatsapp-saas/web",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspace=@whatsapp-saas/api",
+    "db:generate": "npm run generate --workspace=@whatsapp-saas/database",
+    "db:migrate": "npm run migrate:dev --workspace=@whatsapp-saas/database",
+    "db:seed": "npm run seed --workspace=@whatsapp-saas/database"
+  }
+}

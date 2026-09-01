@@ -1,0 +1,535 @@
+// ============================================================================
+// WhatsApp SaaS - Prisma Schema
+// Multi-tenant: toda entidade de cliente carrega tenantId.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  CLIENT
+}
+
+enum TenantStatus {
+  ACTIVE
+  BLOCKED
+  SUSPENDED
+}
+
+enum InstanceStatus {
+  CONNECTED
+  CONNECTING
+  DISCONNECTED
+  ERROR
+  PAUSED
+}
+
+enum MessagingProviderType {
+  MOCK
+  WHATSAPP_CLOUD_API
+}
+
+enum SenderStatus {
+  AVAILABLE
+  BUSY
+  PAUSED
+  ERROR
+}
+
+enum SessionStatus {
+  WAITING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  ERROR
+}
+
+enum ContactStatus {
+  ACTIVE
+  OPTED_OUT
+  BLOCKED
+  ARCHIVED
+}
+
+enum ConsentSource {
+  FORM
+  IMPORT
+  MANUAL
+  WEBHOOK
+  API
+}
+
+enum ConsentStatus {
+  GRANTED
+  REVOKED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum AutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum AutomationNodeType {
+  START
+  SEND_MESSAGE
+  WAIT
+  WAIT_FOR_REPLY
+  CONDITION
+  TAG_CONTACT
+  REMOVE_TAG
+  TRANSFER
+  END
+  SEND_INVITE
+}
+
+enum AutomationExecutionStatus {
+  RUNNING
+  WAITING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum InviteEventType {
+  INVITE_OFFERED
+  INVITE_ACCEPTED
+  INVITE_DECLINED
+  INVITE_SENT
+}
+
+enum WebhookProcessStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  IGNORED_DUPLICATE
+}
+
+enum NotificationType {
+  INSTANCE_CONNECTED
+  INSTANCE_DISCONNECTED
+  INSTANCE_ERROR
+  AUTOMATION_COMPLETED
+  CONTACT_OPT_OUT
+  GENERIC
+}
+
+// ---------------------------------------------------------------------------
+// Core / Tenancy
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        String       @id @default(uuid())
+  name      String
+  status    TenantStatus @default(ACTIVE)
+  // Preparado para futuro plano/cobrança, sem lógica ativa nesta versão.
+  planCode  String?      @default("FREE")
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  users         User[]
+  instances     Instance[]
+  contacts      Contact[]
+  conversations Conversation[]
+  automations   Automation[]
+  groups        Group[]
+  logs          Log[]
+  notifications Notification[]
+  sessions      Session[]
+  webhookEvents WebhookEvent[]
+  jobs          Job[]
+
+  @@map("tenants")
+}
+
+model User {
+  id                String    @id @default(uuid())
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name              String
+  email             String    @unique
+  passwordHash      String
+  role              UserRole  @default(CLIENT)
+  isActive          Boolean   @default(true)
+  failedLoginCount  Int       @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+  logs          Log[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+  ip        String?
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Instances / Messaging
+// ---------------------------------------------------------------------------
+
+model Instance {
+  id             String                @id @default(uuid())
+  tenantId       String
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  phoneNumber    String?
+  status         InstanceStatus        @default(DISCONNECTED)
+  provider       MessagingProviderType @default(MOCK)
+  // Credenciais/config específicas do provedor, armazenadas criptografadas na aplicação.
+  providerConfig Json?
+  lastError      String?
+  lastActivityAt DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  senders       Sender[]
+  conversations Conversation[]
+  sessions      Session[]
+  messages      Message[]
+
+  @@index([tenantId])
+  @@map("instances")
+}
+
+// Message Sender Pool: números de atendimento configuráveis pelo admin.
+model Sender {
+  id             String       @id @default(uuid())
+  instanceId     String
+  instance       Instance     @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  name           String
+  phoneNumber    String
+  status         SenderStatus @default(AVAILABLE)
+  capacity       Int          @default(1)
+  isActive       Boolean      @default(true)
+  lastUsedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  sessions Session[]
+
+  @@index([instanceId])
+  @@map("senders")
+}
+
+// ---------------------------------------------------------------------------
+// Contacts / Consent (LGPD)
+// ---------------------------------------------------------------------------
+
+model Contact {
+  id              String        @id @default(uuid())
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name            String
+  phone           String
+  email           String?
+  origin          String?
+  status          ContactStatus @default(ACTIVE)
+  tags            String[]      @default([])
+  lastInteraction DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  consents      Consent[]
+  conversations Conversation[]
+  sessions      Session[]
+  invites       Invite[]
+  messages      Message[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@map("contacts")
+}
+
+model Consent {
+  id        String        @id @default(uuid())
+  contactId String
+  contact   Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status    ConsentStatus
+  source    ConsentSource
+  note      String?
+  createdAt DateTime      @default(now())
+
+  @@index([contactId])
+  @@map("consents")
+}
+
+// ---------------------------------------------------------------------------
+// Conversations / Messages
+// ---------------------------------------------------------------------------
+
+model Conversation {
+  id                String   @id @default(uuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instanceId        String
+  instance          Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  contactId         String
+  contact           Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  automationPaused  Boolean  @default(false)
+  lastMessageAt     DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  messages Message[]
+  sessions Session[]
+
+  @@index([tenantId])
+  @@index([instanceId])
+  @@index([contactId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String           @id @default(uuid())
+  conversationId String
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  instanceId     String
+  instance       Instance         @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  contactId      String
+  contact        Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  direction      MessageDirection
+  status         MessageStatus    @default(QUEUED)
+  content        String
+  providerMsgId  String?
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([conversationId])
+  @@index([providerMsgId])
+  @@map("messages")
+}
+
+// ---------------------------------------------------------------------------
+// Sessions (atendimento em andamento, ligado ao pool de senders)
+// ---------------------------------------------------------------------------
+
+model Session {
+  id             String        @id @default(uuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instanceId     String
+  instance       Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  senderId       String?
+  sender         Sender?       @relation(fields: [senderId], references: [id])
+  contactId      String
+  contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id])
+  status         SessionStatus @default(WAITING)
+  currentStep    String?
+  // Duração-alvo (configurável) antes de avançar de etapa automaticamente.
+  stepDurationSec Int?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  executions AutomationExecution[]
+
+  @@index([tenantId])
+  @@index([senderId])
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Automation Engine
+// ---------------------------------------------------------------------------
+
+model Automation {
+  id        String           @id @default(uuid())
+  tenantId  String
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  status    AutomationStatus @default(DRAFT)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  nodes      AutomationNode[]
+  executions AutomationExecution[]
+
+  @@index([tenantId])
+  @@map("automations")
+}
+
+model AutomationNode {
+  id           String             @id @default(uuid())
+  automationId String
+  automation   Automation         @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  type         AutomationNodeType
+  // Posição no editor visual (x, y) e configuração específica do node.
+  position     Json?
+  config       Json?
+  // Ligações para o(s) próximo(s) node(s); condições podem ter múltiplos.
+  nextNodeIds  String[]           @default([])
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([automationId])
+  @@map("automation_nodes")
+}
+
+model AutomationExecution {
+  id           String                    @id @default(uuid())
+  automationId String
+  automation   Automation                @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  sessionId    String
+  session      Session                   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  currentNodeId String?
+  status       AutomationExecutionStatus @default(RUNNING)
+  context      Json?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@index([automationId])
+  @@index([sessionId])
+  @@map("automation_executions")
+}
+
+// ---------------------------------------------------------------------------
+// Groups / Invites
+// ---------------------------------------------------------------------------
+
+model Group {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  inviteLink  String
+  category    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invites Invite[]
+
+  @@index([tenantId])
+  @@map("groups")
+}
+
+model Invite {
+  id        String          @id @default(uuid())
+  contactId String
+  contact   Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  groupId   String
+  group     Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  event     InviteEventType
+  createdAt DateTime        @default(now())
+
+  @@index([contactId])
+  @@index([groupId])
+  @@map("invites")
+}
+
+// ---------------------------------------------------------------------------
+// Webhooks / Jobs / Logs / Notifications
+// ---------------------------------------------------------------------------
+
+model WebhookEvent {
+  id            String               @id @default(uuid())
+  tenantId      String?
+  tenant        Tenant?              @relation(fields: [tenantId], references: [id])
+  provider      MessagingProviderType
+  eventType     String
+  // Chave de idempotência derivada do payload/assinatura do provedor.
+  idempotencyKey String              @unique
+  payload       Json
+  status        WebhookProcessStatus @default(PENDING)
+  processedAt   DateTime?
+  error         String?
+  createdAt     DateTime             @default(now())
+
+  @@index([tenantId])
+  @@map("webhook_events")
+}
+
+model Job {
+  id        String   @id @default(uuid())
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  queue     String
+  jobId     String
+  status    String
+  attempts  Int      @default(0)
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([queue])
+  @@map("jobs")
+}
+
+model Log {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([action])
+  @@map("logs")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  tenantId  String
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([tenantId])
+  @@map("notifications")
+}

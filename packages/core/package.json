@@ -1,0 +1,21 @@
+{
+  "name": "@whatsapp-saas/core",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@whatsapp-saas/database": "*",
+    "@whatsapp-saas/types": "*",
+    "@whatsapp-saas/config": "*",
+    "ioredis": "^5.4.1",
+    "bullmq": "^5.12.12"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "@types/node": "^22.5.0"
+  }
+}
