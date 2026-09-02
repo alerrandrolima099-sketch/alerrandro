@@ -10,6 +10,15 @@ WORKDIR /app
 # cache-bust(qr-code-feature): força o Railway a reconhecer que o conteúdo
 # de apps/web mudou (o build anterior ficou com cache travado depois de uma
 # alteração só dentro de apps/web/src/app/(app)/instances/page.tsx).
+#
+# git: o "npm install" roda a partir da RAIZ do monorepo (workspaces), então
+# resolve TODAS as dependências de TODOS os pacotes internos de uma vez -
+# inclusive @whiskeysockets/baileys (usado só por @whatsapp-saas/core), que
+# depende de um pacote (libsignal) publicado direto no GitHub, não no npm.
+# Sem o binário "git" o "npm install" falha com "spawn git ENOENT", mesmo
+# aqui no web não importando baileys diretamente.
+RUN apk add --no-cache git
+
 COPY package.json package-lock.json* ./
 COPY packages ./packages
 COPY apps/web ./apps/web
