@@ -29,6 +29,7 @@ export const QUEUE_NAMES = {
   NOTIFICATION: "notificationQueue",
   INSTANCE_CONNECT: "instanceConnectQueue",
   AI_REPLY: "aiReplyQueue",
+  GROUP_JOIN: "groupJoinQueue",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -68,4 +69,8 @@ export type InstanceConnectJobData = {
 
 export type AiReplyJobData = {
   conversationId: string;
+};
+
+export type GroupJoinJobData = {
+  groupJoinId: string;
 };
