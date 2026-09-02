@@ -222,6 +222,13 @@ model Instance {
   // QR Code atual (data URL base64) para pareamento via WHATSAPP_QR - efêmero,
   // limpo assim que a instância conecta ou o código expira.
   qrCode         String?               @db.Text
+  // IA (ChatGPT) responde automaticamente mensagens recebidas nesta instância
+  // quando a conversa não estiver com automationPaused=true e não houver uma
+  // sessão de automação (fluxo) ativa aguardando resposta.
+  aiAutoReplyEnabled Boolean           @default(false)
+  // Prompt de sistema (persona) usado nas respostas da IA. Quando nulo, usa
+  // um prompt padrão genérico de atendimento.
+  aiSystemPrompt String?               @db.Text
   lastError      String?
   lastActivityAt DateTime?
   createdAt      DateTime              @default(now())
