@@ -26,7 +26,7 @@ export function registerAiReplyProcessor() {
 
       const conversation = await prisma.conversation.findUnique({
         where: { id: conversationId },
-        include: { contact: true, instance: true },
+        include: { contact: true, instance: { include: { persona: true } } },
       });
       if (!conversation) return { skipped: true, reason: "conversation_not_found" };
 
@@ -53,9 +53,14 @@ export function registerAiReplyProcessor() {
           content: m.content as string,
         }));
 
+      // Perfil de Conversa (seção 38): o texto livre da instância continua
+      // tendo prioridade quando preenchido - o Perfil só entra como
+      // alternativa reutilizável quando não há texto livre configurado.
+      const systemPrompt = conversation.instance.aiSystemPrompt ?? conversation.instance.persona?.systemPrompt ?? null;
+
       const result = await generateAiReply({
         history,
-        systemPrompt: conversation.instance.aiSystemPrompt,
+        systemPrompt,
       });
 
       if (!result.ok) {
