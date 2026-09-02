@@ -25,7 +25,8 @@ export function registerMessageProcessor() {
         return { skipped: true, reason: "no_active_consent" };
       }
 
-      const provider = getMessagingProvider();
+      const instance = await prisma.instance.findUnique({ where: { id: instanceId } });
+      const provider = getMessagingProvider(instance?.provider);
       const result = await provider.sendTextMessage({ instanceId, to: contact.phone, text: content, idempotencyKey });
 
       await prisma.message.updateMany({
