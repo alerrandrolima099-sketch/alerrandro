@@ -38,6 +38,7 @@ enum InstanceStatus {
 enum MessagingProviderType {
   MOCK
   WHATSAPP_CLOUD_API
+  WHATSAPP_QR
 }
 
 enum SenderStatus {
@@ -218,6 +219,9 @@ model Instance {
   provider       MessagingProviderType @default(MOCK)
   // Credenciais/config específicas do provedor, armazenadas criptografadas na aplicação.
   providerConfig Json?
+  // QR Code atual (data URL base64) para pareamento via WHATSAPP_QR - efêmero,
+  // limpo assim que a instância conecta ou o código expira.
+  qrCode         String?               @db.Text
   lastError      String?
   lastActivityAt DateTime?
   createdAt      DateTime              @default(now())
