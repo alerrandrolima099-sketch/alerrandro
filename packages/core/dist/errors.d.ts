@@ -1,5 +1,0 @@
-export declare class AppError extends Error {
-    statusCode: number;
-    code?: string;
-    constructor(statusCode: number, message: string, code?: string);
-}
