@@ -57,12 +57,15 @@ dashboardRouter.get("/summary", async (req, res, next) => {
   }
 });
 
-/** Série temporal simples para gráficos (mensagens por dia, últimos 14 dias). */
+/** Série temporal simples para gráficos (mensagens por dia). Aceita ?days=7|14|30|90 (default 14). */
 dashboardRouter.get("/messages-timeseries", async (req, res, next) => {
   try {
     const tenantId = req.tenantId!;
+    const allowedDays = [7, 14, 30, 90];
+    const requestedDays = Number(req.query.days);
+    const days = allowedDays.includes(requestedDays) ? requestedDays : 14;
     const since = new Date();
-    since.setDate(since.getDate() - 14);
+    since.setDate(since.getDate() - days);
 
     const messages = await prisma.message.findMany({
       where: { instance: { tenantId }, createdAt: { gte: since } },
