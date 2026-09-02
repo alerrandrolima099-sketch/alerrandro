@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Wifi, WifiOff, Trash2, Bot } from "lucide-react";
+import { Plus, Wifi, WifiOff, Trash2, Bot, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
 
@@ -12,6 +12,7 @@ type Instance = {
   status: string;
   provider: string;
   qrCode: string | null;
+  profilePicUrl: string | null;
   lastError: string | null;
   lastActivityAt: string | null;
   createdAt: string;
@@ -26,6 +27,59 @@ const PROVIDER_OPTIONS = [
   { value: "WHATSAPP_CLOUD_API", label: "WhatsApp Business Cloud API (oficial)" },
   { value: "WHATSAPP_QR", label: "WhatsApp via QR Code (não oficial)" },
 ];
+
+const PROVIDER_LABELS: Record<string, string> = {
+  MOCK: "Mock",
+  WHATSAPP_CLOUD_API: "Cloud API (oficial)",
+  WHATSAPP_QR: "QR Code (não oficial)",
+};
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] ?? "?";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (first + last).toUpperCase();
+}
+
+const AVATAR_GRADIENTS = [
+  "from-emerald-400 to-teal-500",
+  "from-violet-400 to-purple-500",
+  "from-amber-400 to-orange-500",
+  "from-sky-400 to-blue-500",
+  "from-pink-400 to-rose-500",
+  "from-lime-400 to-green-500",
+];
+
+function avatarGradient(seed: string) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+}
+
+// Foto de perfil do WhatsApp (seção 36): só existe para instâncias
+// WHATSAPP_QR que conseguiram buscá-la (melhor esforço, best-effort) - nos
+// demais casos cai no círculo com gradiente + iniciais.
+function InstanceAvatar({ instance, size = 48 }: { instance: Instance; size?: number }) {
+  if (instance.profilePicUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={instance.profilePicUrl}
+        alt={`Foto de perfil de ${instance.name}`}
+        className="rounded-full object-cover shrink-0 ring-2 ring-border"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <div
+      className={`flex items-center justify-center rounded-full bg-gradient-to-br ${avatarGradient(instance.name)} text-white font-semibold shrink-0 ring-2 ring-border`}
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
+    >
+      {initials(instance.name)}
+    </div>
+  );
+}
 
 export default function InstancesPage() {
   const [instances, setInstances] = useState<Instance[]>([]);
@@ -147,7 +201,7 @@ export default function InstancesPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-black font-medium rounded-lg px-4 py-2 text-sm"
+          className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-black font-medium rounded-lg px-4 py-2 text-sm transition-colors shadow-sm shadow-primary/20"
         >
           <Plus size={16} /> Nova instância
         </button>
@@ -161,7 +215,7 @@ export default function InstancesPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary transition-colors"
               placeholder="Ex: Atendimento Comercial"
             />
           </div>
@@ -170,7 +224,7 @@ export default function InstancesPage() {
             <select
               value={provider}
               onChange={(e) => setProvider(e.target.value)}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary transition-colors"
             >
               {PROVIDER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -196,17 +250,39 @@ export default function InstancesPage() {
         {instances.map((inst) => {
           const showQr = inst.provider === "WHATSAPP_QR" && inst.status === "CONNECTING";
           return (
-            <div key={inst.id} className="bg-surface border border-border rounded-xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium">{inst.name}</h3>
-                <Badge status={inst.status} />
+            <div
+              key={inst.id}
+              className="bg-surface border border-border rounded-2xl p-5 hover:border-primary/40 transition-colors flex flex-col"
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <InstanceAvatar instance={inst} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-medium truncate">{inst.name}</h3>
+                    <Badge status={inst.status} />
+                  </div>
+                  <p className="text-xs text-muted mt-0.5">{PROVIDER_LABELS[inst.provider] ?? inst.provider}</p>
+                </div>
               </div>
-              <p className="text-sm text-muted mb-1">Número: {inst.phoneNumber ?? "—"}</p>
-              <p className="text-sm text-muted mb-1">Provedor: {inst.provider}</p>
-              {inst.lastError && <p className="text-sm text-red-400 mb-1">Erro: {inst.lastError}</p>}
-              <p className="text-xs text-muted mb-4">
-                Última atividade: {inst.lastActivityAt ? new Date(inst.lastActivityAt).toLocaleString("pt-BR") : "—"}
-              </p>
+
+              <div className="bg-background/60 border border-border rounded-lg px-3 py-2 mb-3 text-sm">
+                <div className="flex items-center justify-between text-muted text-xs mb-1">
+                  <span>Número</span>
+                  <span>Última atividade</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{inst.phoneNumber ?? "—"}</span>
+                  <span className="text-xs text-muted">
+                    {inst.lastActivityAt ? new Date(inst.lastActivityAt).toLocaleString("pt-BR") : "—"}
+                  </span>
+                </div>
+              </div>
+
+              {inst.lastError && (
+                <p className="text-xs text-red-400 mb-3 bg-red-500/5 border border-red-500/20 rounded-lg px-2.5 py-1.5">
+                  {inst.lastError}
+                </p>
+              )}
 
               {showQr && (
                 <div className="mb-4 flex flex-col items-center bg-background border border-border rounded-lg p-4">
@@ -225,14 +301,14 @@ export default function InstancesPage() {
                 </div>
               )}
 
-              <div className="mb-4 bg-background border border-border rounded-lg p-3">
+              <div className="mb-4 bg-background/60 border border-border rounded-lg p-3">
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input
                     type="checkbox"
                     checked={aiDraft[inst.id]?.enabled ?? inst.aiAutoReplyEnabled}
                     onChange={(e) => updateDraft(inst.id, { enabled: e.target.checked })}
                   />
-                  <Bot size={14} /> Resposta automática por IA (ChatGPT)
+                  <Bot size={14} className="text-primary" /> Resposta automática por IA (ChatGPT)
                 </label>
                 <p className="text-xs text-muted mt-1 mb-2">
                   Quando ligada, a IA responde automaticamente novas mensagens desta conversa (com um pequeno
@@ -243,23 +319,23 @@ export default function InstancesPage() {
                   onChange={(e) => updateDraft(inst.id, { prompt: e.target.value })}
                   placeholder="Persona / instruções da IA (opcional). Ex: Você é atendente da Loja X, responda de forma curta e cordial..."
                   rows={2}
-                  className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary resize-y"
+                  className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary resize-y transition-colors"
                 />
                 <button
                   disabled={busy === inst.id}
                   onClick={() => saveAiSettings(inst.id)}
-                  className="mt-2 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50"
+                  className="mt-2 flex items-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-primary/25 transition-colors"
                 >
-                  Salvar IA
+                  <Sparkles size={12} /> Salvar IA
                 </button>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-auto pt-1">
                 {inst.status !== "CONNECTED" ? (
                   <button
                     disabled={busy === inst.id}
                     onClick={() => connect(inst.id)}
-                    className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50"
+                    className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-primary/25 transition-colors"
                   >
                     <Wifi size={14} /> {showQr ? "Gerar novo QR Code" : "Conectar"}
                   </button>
@@ -267,14 +343,14 @@ export default function InstancesPage() {
                   <button
                     disabled={busy === inst.id}
                     onClick={() => disconnect(inst.id)}
-                    className="flex items-center gap-1.5 text-xs bg-gray-500/15 text-gray-300 rounded-lg px-3 py-1.5 disabled:opacity-50"
+                    className="flex items-center gap-1.5 text-xs bg-gray-500/15 text-gray-300 rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-gray-500/25 transition-colors"
                   >
                     <WifiOff size={14} /> Desconectar
                   </button>
                 )}
                 <button
                   onClick={() => remove(inst.id)}
-                  className="flex items-center gap-1.5 text-xs bg-red-500/15 text-red-400 rounded-lg px-3 py-1.5"
+                  className="flex items-center gap-1.5 text-xs bg-red-500/15 text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-500/25 transition-colors"
                 >
                   <Trash2 size={14} /> Excluir
                 </button>
