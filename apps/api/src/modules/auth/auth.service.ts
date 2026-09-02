@@ -97,9 +97,9 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
-    let payload: JwtUserPayload;
+    let decoded: JwtUserPayload;
     try {
-      payload = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as JwtUserPayload;
+      decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as JwtUserPayload;
     } catch {
       throw new AppError(401, "Refresh token inválido ou expirado");
     }
@@ -112,6 +112,17 @@ export class AuthService {
 
     // Rotação: revoga o token usado e emite um novo par (mitiga replay).
     await prisma.refreshToken.update({ where: { id: stored.id }, data: { revoked: true } });
+
+    // jwt.verify() devolve o payload decodificado incluindo "exp"/"iat" da
+    // assinatura original. Reconstruir um payload limpo (só os campos que
+    // realmente importam) é obrigatório aqui: assinar de novo passando um
+    // payload que já tem "exp" junto com a opção "expiresIn" faz o
+    // jsonwebtoken lançar erro ("payload already has an exp property"),
+    // o que quebrava o /auth/refresh inteiro (500) e, em cascata, a sessão
+    // caía sozinha assim que o access token expirava - inclusive derrubando
+    // a conexão de tempo real das Conversas, que também depende de um token
+    // válido para autenticar o WebSocket.
+    const payload: JwtUserPayload = { sub: decoded.sub, tenantId: decoded.tenantId, role: decoded.role };
 
     const newAccessToken = signAccessToken(payload);
     const newRefreshToken = signRefreshToken(payload);
