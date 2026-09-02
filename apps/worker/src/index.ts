@@ -5,6 +5,7 @@ import { registerAutomationProcessor } from "./processors/automation.processor";
 import { registerWebhookProcessor } from "./processors/webhook.processor";
 import { registerNotificationProcessor } from "./processors/notification.processor";
 import { registerInstanceConnectProcessor, resumeQrInstancesOnStartup } from "./processors/instanceConnect.processor";
+import { registerAiReplyProcessor } from "./processors/aiReply.processor";
 
 /**
  * Entry point do worker (seção 12/apps/worker).
@@ -22,6 +23,7 @@ async function main() {
   registerWebhookProcessor();
   registerNotificationProcessor();
   registerInstanceConnectProcessor();
+  registerAiReplyProcessor();
 
   // eslint-disable-next-line no-console
   console.log("[worker] all processors registered, waiting for jobs...");
