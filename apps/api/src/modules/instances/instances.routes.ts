@@ -57,6 +57,9 @@ instancesRouter.post("/:id/disconnect", async (req, res, next) => {
 const updateAiSettingsSchema = z.object({
   aiAutoReplyEnabled: z.boolean().optional(),
   aiSystemPrompt: z.string().max(4000).nullable().optional(),
+  // Perfil de Conversa (seção 38) reutilizável - quando aiSystemPrompt está
+  // preenchido, ele continua tendo prioridade sobre o Perfil selecionado.
+  personaId: z.string().nullable().optional(),
 });
 
 instancesRouter.patch("/:id/ai-settings", async (req, res, next) => {
