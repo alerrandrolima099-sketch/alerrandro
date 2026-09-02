@@ -93,14 +93,21 @@ export class InstancesService {
   async updateAiSettings(
     tenantId: string,
     id: string,
-    params: { aiAutoReplyEnabled?: boolean; aiSystemPrompt?: string | null }
+    params: { aiAutoReplyEnabled?: boolean; aiSystemPrompt?: string | null; personaId?: string | null }
   ) {
     await this.getById(tenantId, id);
+
+    if (params.personaId) {
+      const persona = await prisma.persona.findFirst({ where: { id: params.personaId, tenantId } });
+      if (!persona) throw new AppError(404, "Perfil de conversa não encontrado");
+    }
+
     const updated = await prisma.instance.update({
       where: { id },
       data: {
         ...(params.aiAutoReplyEnabled !== undefined ? { aiAutoReplyEnabled: params.aiAutoReplyEnabled } : {}),
         ...(params.aiSystemPrompt !== undefined ? { aiSystemPrompt: params.aiSystemPrompt } : {}),
+        ...(params.personaId !== undefined ? { personaId: params.personaId } : {}),
       },
     });
     await writeLog({
