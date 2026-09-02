@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Wifi, WifiOff, Trash2, Bot, Sparkles } from "lucide-react";
+import { Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
+import { EmptyState } from "@/components/EmptyState";
 
 type Instance = {
   id: string;
@@ -18,6 +19,15 @@ type Instance = {
   createdAt: string;
   aiAutoReplyEnabled: boolean;
   aiSystemPrompt: string | null;
+};
+
+type WarmupPairLite = {
+  id: string;
+  instanceA: { id: string };
+  instanceB: { id: string };
+  enabled: boolean;
+  dailyMessageTarget: number;
+  sentToday: number;
 };
 
 type AiDraft = { enabled: boolean; prompt: string };
@@ -83,6 +93,7 @@ function InstanceAvatar({ instance, size = 48 }: { instance: Instance; size?: nu
 
 export default function InstancesPage() {
   const [instances, setInstances] = useState<Instance[]>([]);
+  const [warmupByInstance, setWarmupByInstance] = useState<Record<string, WarmupPairLite>>({});
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [provider, setProvider] = useState("MOCK");
@@ -91,8 +102,21 @@ export default function InstancesPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function load() {
-    const data = await api<Instance[]>("/instances");
+    const [data, pairs] = await Promise.all([
+      api<Instance[]>("/instances"),
+      api<WarmupPairLite[]>("/warmup-pairs").catch(() => [] as WarmupPairLite[]),
+    ]);
     setInstances(data);
+
+    // Mapa instanceId -> par de aquecimento (o card de cada número mostra um
+    // indicador rápido de aquecimento, sem duplicar a tela de Aquecimento).
+    const map: Record<string, WarmupPairLite> = {};
+    for (const pair of pairs) {
+      map[pair.instanceA.id] = pair;
+      map[pair.instanceB.id] = pair;
+    }
+    setWarmupByInstance(map);
+
     // Só inicializa o rascunho de IA na primeira vez que vê cada instância -
     // não sobrescreve o que o usuário está digitando/marcando enquanto o
     // polling de QR Code roda em segundo plano.
@@ -161,6 +185,20 @@ export default function InstancesPage() {
     }
   }
 
+  // Pausa (seção 38): mantém a sessão do WhatsApp como está, só marca a
+  // instância como indisponível para uso (aquecimento, automações, novos
+  // atendimentos) até o usuário retomar. Diferente de desconectar, que
+  // encerra a sessão de fato.
+  async function pause(id: string) {
+    setBusy(id);
+    try {
+      await api(`/instances/${id}/pause`, { method: "POST" });
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function remove(id: string) {
     if (!confirm("Excluir esta instância?")) return;
     await api(`/instances/${id}`, { method: "DELETE" });
@@ -196,14 +234,14 @@ export default function InstancesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold mb-1">Instâncias</h1>
-          <p className="text-muted">Gerencie suas conexões de WhatsApp Business.</p>
+          <h1 className="text-2xl font-semibold mb-1">Meus Números</h1>
+          <p className="text-muted">Conecte, pause e acompanhe a saúde de cada número de WhatsApp.</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-black font-medium rounded-lg px-4 py-2 text-sm transition-colors shadow-sm shadow-primary/20"
         >
-          <Plus size={16} /> Nova instância
+          <Plus size={16} /> Novo número
         </button>
       </div>
 
@@ -246,123 +284,160 @@ export default function InstancesPage() {
         </form>
       )}
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {instances.map((inst) => {
-          const showQr = inst.provider === "WHATSAPP_QR" && inst.status === "CONNECTING";
-          return (
-            <div
-              key={inst.id}
-              className="bg-surface border border-border rounded-2xl p-5 hover:border-primary/40 transition-colors flex flex-col"
+      {instances.length === 0 ? (
+        <EmptyState
+          icon={Wifi}
+          title="Nenhum número cadastrado ainda"
+          description="Adicione seu primeiro número de WhatsApp para começar a conectar, aquecer e automatizar."
+          action={
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium mx-auto"
             >
-              <div className="flex items-start gap-3 mb-4">
-                <InstanceAvatar instance={inst} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-medium truncate">{inst.name}</h3>
-                    <Badge status={inst.status} />
+              <Plus size={16} /> Novo número
+            </button>
+          }
+        />
+      ) : (
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {instances.map((inst) => {
+            const showQr = inst.provider === "WHATSAPP_QR" && inst.status === "CONNECTING";
+            const warmup = warmupByInstance[inst.id];
+            return (
+              <div
+                key={inst.id}
+                className="bg-surface border border-border rounded-2xl p-5 hover:border-primary/40 transition-colors flex flex-col"
+              >
+                <div className="flex items-start gap-3 mb-4">
+                  <InstanceAvatar instance={inst} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-medium truncate">{inst.name}</h3>
+                      <Badge status={inst.status} />
+                    </div>
+                    <p className="text-xs text-muted mt-0.5">{PROVIDER_LABELS[inst.provider] ?? inst.provider}</p>
                   </div>
-                  <p className="text-xs text-muted mt-0.5">{PROVIDER_LABELS[inst.provider] ?? inst.provider}</p>
                 </div>
-              </div>
 
-              <div className="bg-background/60 border border-border rounded-lg px-3 py-2 mb-3 text-sm">
-                <div className="flex items-center justify-between text-muted text-xs mb-1">
-                  <span>Número</span>
-                  <span>Última atividade</span>
+                <div className="bg-background/60 border border-border rounded-lg px-3 py-2 mb-3 text-sm">
+                  <div className="flex items-center justify-between text-muted text-xs mb-1">
+                    <span>Número</span>
+                    <span>Última atividade</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{inst.phoneNumber ?? "—"}</span>
+                    <span className="text-xs text-muted">
+                      {inst.lastActivityAt ? new Date(inst.lastActivityAt).toLocaleString("pt-BR") : "—"}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{inst.phoneNumber ?? "—"}</span>
-                  <span className="text-xs text-muted">
-                    {inst.lastActivityAt ? new Date(inst.lastActivityAt).toLocaleString("pt-BR") : "—"}
+
+                <div className="flex items-center gap-1.5 mb-3 text-xs">
+                  <Flame size={12} className={warmup?.enabled ? "text-primary" : "text-muted"} />
+                  <span className={warmup?.enabled ? "text-primary" : "text-muted"}>
+                    {warmup
+                      ? warmup.enabled
+                        ? `Aquecendo: ${warmup.sentToday}/${warmup.dailyMessageTarget} hoje`
+                        : "Aquecimento pausado"
+                      : "Fora de aquecimento"}
                   </span>
+                  <a href="/warmup" className="text-muted hover:text-primary hover:underline ml-auto">
+                    {warmup ? "ver" : "aquecer"}
+                  </a>
                 </div>
-              </div>
 
-              {inst.lastError && (
-                <p className="text-xs text-red-400 mb-3 bg-red-500/5 border border-red-500/20 rounded-lg px-2.5 py-1.5">
-                  {inst.lastError}
-                </p>
-              )}
+                {inst.lastError && (
+                  <p className="text-xs text-red-400 mb-3 bg-red-500/5 border border-red-500/20 rounded-lg px-2.5 py-1.5">
+                    {inst.lastError}
+                  </p>
+                )}
 
-              {showQr && (
-                <div className="mb-4 flex flex-col items-center bg-background border border-border rounded-lg p-4">
-                  {inst.qrCode ? (
+                {showQr && (
+                  <div className="mb-4 flex flex-col items-center bg-background border border-border rounded-lg p-4">
+                    {inst.qrCode ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={inst.qrCode} alt="QR Code do WhatsApp" className="w-44 h-44 rounded" />
+                        <p className="text-xs text-muted mt-2 text-center">
+                          Abra o WhatsApp no celular → Aparelhos conectados → Conectar um aparelho e escaneie.
+                          O código expira em segundos; se sumir, clique em "Conectar" novamente.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted">Gerando QR Code, aguarde...</p>
+                    )}
+                  </div>
+                )}
+
+                <div className="mb-4 bg-background/60 border border-border rounded-lg p-3">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={aiDraft[inst.id]?.enabled ?? inst.aiAutoReplyEnabled}
+                      onChange={(e) => updateDraft(inst.id, { enabled: e.target.checked })}
+                    />
+                    <Bot size={14} className="text-primary" /> Resposta automática por IA (ChatGPT)
+                  </label>
+                  <p className="text-xs text-muted mt-1 mb-2">
+                    Quando ligada, a IA responde automaticamente novas mensagens desta conversa (com um pequeno
+                    atraso, como um atendente digitando), exceto quando um atendente humano assumir a conversa.
+                  </p>
+                  <textarea
+                    value={aiDraft[inst.id]?.prompt ?? inst.aiSystemPrompt ?? ""}
+                    onChange={(e) => updateDraft(inst.id, { prompt: e.target.value })}
+                    placeholder="Persona / instruções da IA (opcional). Ex: Você é atendente da Loja X, responda de forma curta e cordial..."
+                    rows={2}
+                    className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary resize-y transition-colors"
+                  />
+                  <button
+                    disabled={busy === inst.id}
+                    onClick={() => saveAiSettings(inst.id)}
+                    className="mt-2 flex items-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-primary/25 transition-colors"
+                  >
+                    <Sparkles size={12} /> Salvar IA
+                  </button>
+                </div>
+
+                <div className="flex gap-2 mt-auto pt-1 flex-wrap">
+                  {inst.status === "CONNECTED" ? (
                     <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={inst.qrCode} alt="QR Code do WhatsApp" className="w-44 h-44 rounded" />
-                      <p className="text-xs text-muted mt-2 text-center">
-                        Abra o WhatsApp no celular → Aparelhos conectados → Conectar um aparelho e escaneie.
-                        O código expira em segundos; se sumir, clique em "Conectar" novamente.
-                      </p>
+                      <button
+                        disabled={busy === inst.id}
+                        onClick={() => pause(inst.id)}
+                        className="flex items-center gap-1.5 text-xs bg-blue-500/15 text-blue-400 rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-blue-500/25 transition-colors"
+                      >
+                        <Pause size={14} /> Pausar
+                      </button>
+                      <button
+                        disabled={busy === inst.id}
+                        onClick={() => disconnect(inst.id)}
+                        className="flex items-center gap-1.5 text-xs bg-gray-500/15 text-gray-300 rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-gray-500/25 transition-colors"
+                      >
+                        <WifiOff size={14} /> Desconectar
+                      </button>
                     </>
                   ) : (
-                    <p className="text-xs text-muted">Gerando QR Code, aguarde...</p>
+                    <button
+                      disabled={busy === inst.id}
+                      onClick={() => connect(inst.id)}
+                      className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-primary/25 transition-colors"
+                    >
+                      <Wifi size={14} />
+                      {showQr ? "Gerar novo QR Code" : inst.status === "PAUSED" ? "Retomar" : "Conectar"}
+                    </button>
                   )}
+                  <button
+                    onClick={() => remove(inst.id)}
+                    className="flex items-center gap-1.5 text-xs bg-red-500/15 text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-500/25 transition-colors"
+                  >
+                    <Trash2 size={14} /> Excluir
+                  </button>
                 </div>
-              )}
-
-              <div className="mb-4 bg-background/60 border border-border rounded-lg p-3">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={aiDraft[inst.id]?.enabled ?? inst.aiAutoReplyEnabled}
-                    onChange={(e) => updateDraft(inst.id, { enabled: e.target.checked })}
-                  />
-                  <Bot size={14} className="text-primary" /> Resposta automática por IA (ChatGPT)
-                </label>
-                <p className="text-xs text-muted mt-1 mb-2">
-                  Quando ligada, a IA responde automaticamente novas mensagens desta conversa (com um pequeno
-                  atraso, como um atendente digitando), exceto quando um atendente humano assumir a conversa.
-                </p>
-                <textarea
-                  value={aiDraft[inst.id]?.prompt ?? inst.aiSystemPrompt ?? ""}
-                  onChange={(e) => updateDraft(inst.id, { prompt: e.target.value })}
-                  placeholder="Persona / instruções da IA (opcional). Ex: Você é atendente da Loja X, responda de forma curta e cordial..."
-                  rows={2}
-                  className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary resize-y transition-colors"
-                />
-                <button
-                  disabled={busy === inst.id}
-                  onClick={() => saveAiSettings(inst.id)}
-                  className="mt-2 flex items-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-primary/25 transition-colors"
-                >
-                  <Sparkles size={12} /> Salvar IA
-                </button>
               </div>
-
-              <div className="flex gap-2 mt-auto pt-1">
-                {inst.status !== "CONNECTED" ? (
-                  <button
-                    disabled={busy === inst.id}
-                    onClick={() => connect(inst.id)}
-                    className="flex items-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-primary/25 transition-colors"
-                  >
-                    <Wifi size={14} /> {showQr ? "Gerar novo QR Code" : "Conectar"}
-                  </button>
-                ) : (
-                  <button
-                    disabled={busy === inst.id}
-                    onClick={() => disconnect(inst.id)}
-                    className="flex items-center gap-1.5 text-xs bg-gray-500/15 text-gray-300 rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-gray-500/25 transition-colors"
-                  >
-                    <WifiOff size={14} /> Desconectar
-                  </button>
-                )}
-                <button
-                  onClick={() => remove(inst.id)}
-                  className="flex items-center gap-1.5 text-xs bg-red-500/15 text-red-400 rounded-lg px-3 py-1.5 hover:bg-red-500/25 transition-colors"
-                >
-                  <Trash2 size={14} /> Excluir
-                </button>
-              </div>
-            </div>
-          );
-        })}
-
-        {instances.length === 0 && (
-          <p className="text-muted text-sm col-span-full">Nenhuma instância cadastrada ainda. Clique em "Nova instância" para começar.</p>
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
