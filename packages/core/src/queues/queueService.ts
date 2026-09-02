@@ -8,6 +8,7 @@ import type {
   WebhookProcessJobData,
   NotificationJobData,
   InstanceConnectJobData,
+  AiReplyJobData,
 } from "@whatsapp-saas/types";
 
 /**
@@ -56,6 +57,14 @@ export const instanceConnectQueue = new Queue<InstanceConnectJobData>(QUEUE_NAME
   defaultJobOptions: { ...defaultJobOptions, attempts: 1 },
 });
 
+// Resposta automática por IA (seção 34): enfileirada com um delay (ver
+// enqueueAiReply) para simular tempo de digitação humano - nunca processada
+// instantaneamente.
+export const aiReplyQueue = new Queue<AiReplyJobData>(QUEUE_NAMES.AI_REPLY, {
+  connection: redisConnection,
+  defaultJobOptions: { ...defaultJobOptions, attempts: 2 },
+});
+
 export const queueEvents = {
   message: new QueueEvents(QUEUE_NAMES.MESSAGE, { connection: redisConnection }),
   session: new QueueEvents(QUEUE_NAMES.SESSION, { connection: redisConnection }),
@@ -63,6 +72,7 @@ export const queueEvents = {
   webhook: new QueueEvents(QUEUE_NAMES.WEBHOOK, { connection: redisConnection }),
   notification: new QueueEvents(QUEUE_NAMES.NOTIFICATION, { connection: redisConnection }),
   instanceConnect: new QueueEvents(QUEUE_NAMES.INSTANCE_CONNECT, { connection: redisConnection }),
+  aiReply: new QueueEvents(QUEUE_NAMES.AI_REPLY, { connection: redisConnection }),
 };
 
 /** Enfileira envio de mensagem com chave de idempotência (jobId = idempotencyKey). */
@@ -89,4 +99,9 @@ export async function enqueueNotification(data: NotificationJobData) {
 /** Enfileira (re)conexão de uma instância WHATSAPP_QR - idempotente por instância. */
 export async function enqueueInstanceConnect(data: InstanceConnectJobData) {
   return instanceConnectQueue.add("connect-instance", data, { jobId: data.instanceId });
+}
+
+/** Enfileira uma resposta automática por IA, com delay (ms) para simular tempo de digitação. */
+export async function enqueueAiReply(data: AiReplyJobData, delayMs = 0) {
+  return aiReplyQueue.add("ai-reply", data, { delay: delayMs });
 }
