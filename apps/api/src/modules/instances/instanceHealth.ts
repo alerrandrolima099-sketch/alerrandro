@@ -16,8 +16,15 @@ import type { Instance, WarmupPair } from "@whatsapp-saas/database";
  *   mensagens de aquecimento trocadas nos últimos 7 dias
  *   (`warmup_messages`) comparado à meta diária do par
  *   (`warmup_pairs.dailyMessageTarget`).
+ * - Grupos entrados: `group_joins` com status JOINED (seção "Entrar com
+ *   todos os números").
+ * - Mensagens recebidas: `messages` com direction INBOUND.
+ * - Evolução (7d): mensagens INBOUND dos últimos 7 dias comparadas às dos
+ *   7 dias anteriores. Sem dado suficiente (instância criada há menos de
+ *   14 dias, ou sem mensagens no período anterior) mostra "insuficiente"
+ *   em vez de uma porcentagem fabricada.
  *
- * Nenhum campo novo foi necessário no banco para estas duas métricas - são
+ * Nenhum campo novo foi necessário no banco para estas métricas - são
  * 100% calculadas em tempo real a partir de tabelas que já existem.
  */
 
@@ -113,6 +120,172 @@ export function findPairForInstance(instanceId: string, pairs: WarmupPair[]): Wa
   return pairs.find((p) => p.instanceAId === instanceId || p.instanceBId === instanceId) ?? null;
 }
 
+const WINDOW_7D_MS = 7 * 24 * 60 * 60 * 1000;
+const WINDOW_14D_MS = 14 * 24 * 60 * 60 * 1000;
+const WINDOW_24H_MS = 24 * 60 * 60 * 1000;
+const WINDOW_2H_MS = 2 * 60 * 60 * 1000;
+
+type CountRow = { instanceId?: string; resourceId?: string | null; warmupPairId?: string; _count: { _all: number } };
+
+function toCountMap(rows: CountRow[], key: "instanceId" | "resourceId" | "warmupPairId"): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const k = r[key];
+    if (k) map.set(k, r._count._all);
+  }
+  return map;
+}
+
+/** Busca, em lote (sem N+1), todos os sinais reais usados para calcular
+ * saúde/aquecimento/estatísticas de um conjunto de instâncias. */
+async function getInstanceSignals(tenantId: string, ids: string[]) {
+  const since7d = new Date(Date.now() - WINDOW_7D_MS);
+  const since14d = new Date(Date.now() - WINDOW_14D_MS);
+
+  const [disconnectLogs7d, msgCounts7d, pairs, groupJoinsJoined, msgReceivedTotal, msgReceived7d, msgReceivedPrev7d] = await Promise.all([
+    prisma.log.groupBy({
+      by: ["resourceId"],
+      where: { tenantId, resource: "instance", action: "INSTANCE_DISCONNECTED", resourceId: { in: ids }, createdAt: { gte: since7d } },
+      _count: { _all: true },
+    }),
+    prisma.message.groupBy({
+      by: ["instanceId"],
+      where: { instanceId: { in: ids }, createdAt: { gte: since7d } },
+      _count: { _all: true },
+    }),
+    prisma.warmupPair.findMany({ where: { tenantId } }),
+    prisma.groupJoin.groupBy({
+      by: ["instanceId"],
+      where: { instanceId: { in: ids }, status: "JOINED" },
+      _count: { _all: true },
+    }),
+    prisma.message.groupBy({
+      by: ["instanceId"],
+      where: { instanceId: { in: ids }, direction: "INBOUND" },
+      _count: { _all: true },
+    }),
+    prisma.message.groupBy({
+      by: ["instanceId"],
+      where: { instanceId: { in: ids }, direction: "INBOUND", createdAt: { gte: since7d } },
+      _count: { _all: true },
+    }),
+    prisma.message.groupBy({
+      by: ["instanceId"],
+      where: { instanceId: { in: ids }, direction: "INBOUND", createdAt: { gte: since14d, lt: since7d } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const pairIds = pairs.map((p: WarmupPair) => p.id);
+  const warmupMsgCounts7d = pairIds.length
+    ? await prisma.warmupMessage.groupBy({
+        by: ["warmupPairId"],
+        where: { warmupPairId: { in: pairIds }, createdAt: { gte: since7d } },
+        _count: { _all: true },
+      })
+    : [];
+
+  return {
+    disconnectMap: toCountMap(disconnectLogs7d as CountRow[], "resourceId"),
+    msgMap7d: toCountMap(msgCounts7d as CountRow[], "instanceId"),
+    pairs,
+    groupsJoinedMap: toCountMap(groupJoinsJoined as CountRow[], "instanceId"),
+    msgReceivedTotalMap: toCountMap(msgReceivedTotal as CountRow[], "instanceId"),
+    msgReceived7dMap: toCountMap(msgReceived7d as CountRow[], "instanceId"),
+    msgReceivedPrev7dMap: toCountMap(msgReceivedPrev7d as CountRow[], "instanceId"),
+    warmupMsg7dMap: toCountMap(warmupMsgCounts7d as CountRow[], "warmupPairId"),
+  };
+}
+
+export type WarmupStatus = "NONE" | "ACTIVE" | "PAUSED" | "ISSUE";
+
+export type Evolution7d = { status: "ok"; pct: number; direction: "up" | "down" | "flat" } | { status: "insufficient" };
+
+export type InstanceStatsFields = {
+  healthScore: number;
+  healthTier: HealthTier;
+  healthTierLabel: string;
+  healthColor: "green" | "yellow" | "red";
+  warmupLevel: number;
+  warmupTier: WarmupTier;
+  warmupTierLabel: string;
+  warmupColor: "blue" | "orange" | "yellow" | "green";
+  daysWarming: number;
+  warmupStatus: WarmupStatus;
+  groupsJoined: number;
+  messagesReceived: number;
+  evolution7d: Evolution7d;
+  active: boolean;
+};
+
+/**
+ * Enriquece uma lista de instâncias (já carregadas do banco) com todas as
+ * métricas calculadas - usado tanto pela listagem de "Meus Números" quanto
+ * pelo detalhe de uma instância e pelos alertas do Dashboard. Uma única
+ * rodada de consultas em lote para todas as instâncias, sem N+1.
+ */
+export async function attachInstanceStats<T extends Instance>(
+  tenantId: string,
+  instances: T[]
+): Promise<(T & InstanceStatsFields)[]> {
+  if (instances.length === 0) return [];
+  const ids = instances.map((i) => i.id);
+  const signals = await getInstanceSignals(tenantId, ids);
+  const minAgeForEvolutionMs = WINDOW_14D_MS;
+
+  return instances.map((inst) => {
+    const pair = findPairForInstance(inst.id, signals.pairs);
+    const disconnects7d = signals.disconnectMap.get(inst.id) ?? 0;
+    const messages7d = signals.msgMap7d.get(inst.id) ?? 0;
+    const healthScore = computeHealthScore({ status: inst.status, disconnects7d, messages7d, pair });
+    const health = healthTierFromScore(healthScore);
+
+    const recentWarmupMessages = pair ? signals.warmupMsg7dMap.get(pair.id) ?? 0 : 0;
+    const { level: warmupLevel, daysWarming } = computeWarmupLevel(pair, recentWarmupMessages);
+    const warmupTierInfo = warmupTierFromLevel(warmupLevel);
+
+    let warmupStatus: WarmupStatus = "NONE";
+    if (pair) {
+      if (!pair.enabled) warmupStatus = "PAUSED";
+      else if (pair.lastError) warmupStatus = "ISSUE";
+      else warmupStatus = "ACTIVE";
+    }
+
+    const groupsJoined = signals.groupsJoinedMap.get(inst.id) ?? 0;
+    const messagesReceived = signals.msgReceivedTotalMap.get(inst.id) ?? 0;
+
+    const current7d = signals.msgReceived7dMap.get(inst.id) ?? 0;
+    const prev7d = signals.msgReceivedPrev7dMap.get(inst.id) ?? 0;
+    const ageMs = Date.now() - inst.createdAt.getTime();
+
+    let evolution7d: Evolution7d;
+    if (ageMs < minAgeForEvolutionMs || prev7d === 0) {
+      evolution7d = { status: "insufficient" };
+    } else {
+      const pct = Math.round(((current7d - prev7d) / prev7d) * 100);
+      evolution7d = { status: "ok", pct, direction: pct > 0 ? "up" : pct < 0 ? "down" : "flat" };
+    }
+
+    return {
+      ...inst,
+      healthScore,
+      healthTier: health.tier,
+      healthTierLabel: health.tierLabel,
+      healthColor: health.color,
+      warmupLevel,
+      warmupTier: warmupTierInfo.tier,
+      warmupTierLabel: warmupTierInfo.label,
+      warmupColor: warmupTierInfo.color,
+      daysWarming,
+      warmupStatus,
+      groupsJoined,
+      messagesReceived,
+      evolution7d,
+      active: inst.status === "CONNECTED",
+    };
+  });
+}
+
 export type DashboardAlert = {
   id: string;
   severity: "critical" | "warning" | "success";
@@ -121,10 +294,6 @@ export type DashboardAlert = {
   instanceId: string;
   createdAt: string;
 };
-
-const WINDOW_7D_MS = 7 * 24 * 60 * 60 * 1000;
-const WINDOW_24H_MS = 24 * 60 * 60 * 1000;
-const WINDOW_2H_MS = 2 * 60 * 60 * 1000;
 
 /**
  * Alertas do Dashboard - todos derivados de eventos reais:
@@ -139,47 +308,25 @@ export async function getDashboardAlerts(tenantId: string): Promise<DashboardAle
   if (instances.length === 0) return [];
 
   const ids = instances.map((i: Instance) => i.id);
-  const since7d = new Date(Date.now() - WINDOW_7D_MS);
   const since24h = new Date(Date.now() - WINDOW_24H_MS);
   const since2h = new Date(Date.now() - WINDOW_2H_MS);
 
-  const [disconnectLogs7d, recentDisconnectLogs, msgCounts7d, pairs] = await Promise.all([
-    prisma.log.groupBy({
-      by: ["resourceId"],
-      where: { tenantId, resource: "instance", action: "INSTANCE_DISCONNECTED", resourceId: { in: ids }, createdAt: { gte: since7d } },
-      _count: { _all: true },
-    }),
+  const [statsList, recentDisconnectLogs] = await Promise.all([
+    attachInstanceStats(tenantId, instances),
     prisma.log.findMany({
       where: { tenantId, resource: "instance", action: "INSTANCE_DISCONNECTED", resourceId: { in: ids }, createdAt: { gte: since24h } },
       select: { resourceId: true },
       distinct: ["resourceId"],
     }),
-    prisma.message.groupBy({
-      by: ["instanceId"],
-      where: { instanceId: { in: ids }, createdAt: { gte: since7d } },
-      _count: { _all: true },
-    }),
-    prisma.warmupPair.findMany({ where: { tenantId } }),
   ]);
 
-  const disconnectMap = new Map<string, number>(
-    disconnectLogs7d.map((r: { resourceId: string | null; _count: { _all: number } }) => [r.resourceId as string, r._count._all])
-  );
   const recentDisconnectSet = new Set<string>(
     recentDisconnectLogs.map((r: { resourceId: string | null }) => r.resourceId as string)
-  );
-  const msgMap = new Map<string, number>(
-    msgCounts7d.map((r: { instanceId: string; _count: { _all: number } }) => [r.instanceId, r._count._all])
   );
 
   const alerts: DashboardAlert[] = [];
 
-  for (const inst of instances) {
-    const pair = findPairForInstance(inst.id, pairs);
-    const disconnects7d = disconnectMap.get(inst.id) ?? 0;
-    const messages7d = msgMap.get(inst.id) ?? 0;
-    const score = computeHealthScore({ status: inst.status, disconnects7d, messages7d, pair });
-
+  for (const inst of statsList) {
     if (inst.status === "DISCONNECTED" || inst.status === "ERROR") {
       alerts.push({
         id: `conn-${inst.id}`,
@@ -189,12 +336,12 @@ export async function getDashboardAlerts(tenantId: string): Promise<DashboardAle
         instanceId: inst.id,
         createdAt: (inst.lastActivityAt ?? inst.updatedAt).toISOString(),
       });
-    } else if (score < 75) {
+    } else if (inst.healthScore < 75) {
       alerts.push({
         id: `health-${inst.id}`,
         severity: "warning",
         title: "Número precisa de atenção",
-        message: `${inst.name} apresenta atividade abaixo do esperado (saúde ${score}/100).`,
+        message: `${inst.name} apresenta atividade abaixo do esperado (saúde ${inst.healthScore}/100).`,
         instanceId: inst.id,
         createdAt: inst.updatedAt.toISOString(),
       });
