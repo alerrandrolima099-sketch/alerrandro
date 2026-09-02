@@ -2,11 +2,12 @@ import { Router } from "express";
 import { prisma } from "../../lib/prisma";
 import { requireAuth } from "../../middleware/auth.middleware";
 import { resolveTenant } from "../../middleware/tenant.middleware";
+import { getDashboardAlerts } from "../instances/instanceHealth";
 
 export const dashboardRouter = Router();
 dashboardRouter.use(requireAuth, resolveTenant);
 
-/** Indicadores do dashboard (seção 5). */
+/** Indicadores do dashboard (seção 5, ampliado na seção 39 com pausedInstances). */
 dashboardRouter.get("/summary", async (req, res, next) => {
   try {
     const tenantId = req.tenantId!;
@@ -15,6 +16,7 @@ dashboardRouter.get("/summary", async (req, res, next) => {
       connectedInstances,
       disconnectedInstances,
       errorInstances,
+      pausedInstances,
       activeSessions,
       completedSessions,
       messagesProcessed,
@@ -28,6 +30,7 @@ dashboardRouter.get("/summary", async (req, res, next) => {
       prisma.instance.count({ where: { tenantId, status: "CONNECTED" } }),
       prisma.instance.count({ where: { tenantId, status: "DISCONNECTED" } }),
       prisma.instance.count({ where: { tenantId, status: "ERROR" } }),
+      prisma.instance.count({ where: { tenantId, status: "PAUSED" } }),
       prisma.session.count({ where: { tenantId, status: "ACTIVE" } }),
       prisma.session.count({ where: { tenantId, status: "COMPLETED" } }),
       prisma.message.count({ where: { instance: { tenantId }, status: { in: ["SENT", "DELIVERED", "READ"] } } }),
@@ -43,6 +46,7 @@ dashboardRouter.get("/summary", async (req, res, next) => {
       connectedInstances,
       disconnectedInstances,
       errorInstances,
+      pausedInstances,
       activeSessions,
       completedSessions,
       messagesProcessed,
@@ -52,6 +56,20 @@ dashboardRouter.get("/summary", async (req, res, next) => {
       activeContacts,
       activeAutomations,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Alertas do Dashboard (seção 39) - conexão perdida, número precisa de
+ * atenção (saúde calculada abaixo de 75/100) e número reconectado.
+ * Tudo derivado de eventos reais (ver instanceHealth.ts); nenhum alerta é
+ * fabricado.
+ */
+dashboardRouter.get("/alerts", async (req, res, next) => {
+  try {
+    res.json(await getDashboardAlerts(req.tenantId!));
   } catch (err) {
     next(err);
   }
