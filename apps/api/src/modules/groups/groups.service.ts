@@ -39,7 +39,7 @@ export class GroupsService {
     const instance = await prisma.instance.findFirst({ where: { tenantId, status: "CONNECTED" } });
     if (!instance) throw new AppError(409, "Nenhuma instância conectada para enviar o convite");
 
-    const provider = getMessagingProvider();
+    const provider = getMessagingProvider(instance.provider);
     const result = await provider.sendGroupInvite({ instanceId: instance.id, to: contact.phone, inviteLink: group.inviteLink });
 
     if (result.status === "SENT") {
