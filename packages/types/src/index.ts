@@ -28,6 +28,7 @@ export const QUEUE_NAMES = {
   WEBHOOK: "webhookQueue",
   NOTIFICATION: "notificationQueue",
   INSTANCE_CONNECT: "instanceConnectQueue",
+  AI_REPLY: "aiReplyQueue",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -63,4 +64,8 @@ export type NotificationJobData = {
 
 export type InstanceConnectJobData = {
   instanceId: string;
+};
+
+export type AiReplyJobData = {
+  conversationId: string;
 };
