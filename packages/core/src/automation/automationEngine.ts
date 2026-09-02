@@ -1,5 +1,6 @@
 import { prisma } from "@whatsapp-saas/database";
 import { enqueueSendMessage, enqueueAutomationExecute } from "../queues/queueService";
+import { emitToTenant } from "../realtime/emitter";
 import { randomUUID } from "crypto";
 
 /**
@@ -89,6 +90,11 @@ export class AutomationEngine {
             contactId: contact.id,
             content: config.text,
             idempotencyKey: randomUUID(),
+          });
+          // Tempo real (seção 36): a automação também gera mensagem numa
+          // conversa - a tela de Conversas precisa saber.
+          emitToTenant(execution.session.tenantId, "conversation:message", {
+            conversationId: execution.session.conversationId,
           });
         }
         break;
