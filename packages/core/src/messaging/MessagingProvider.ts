@@ -32,11 +32,28 @@ export type SendGroupInviteParams = {
   inviteLink: string;
 };
 
+// Entrar em um grupo com todos os números (seção 15/38): diferente de
+// sendGroupInvite (manda o LINK como texto para um contato), isto faz a
+// PRÓPRIA instância entrar no grupo de verdade, usando o código do convite
+// (o trecho da URL depois de https://chat.whatsapp.com/). Só é suportado de
+// fato pelo BaileysProvider (WHATSAPP_QR) - a Cloud API oficial não tem
+// endpoint equivalente, então WhatsAppCloudProvider sempre retorna FAILED.
+export type JoinGroupParams = {
+  instanceId: string;
+  inviteCode: string;
+};
+
+export type JoinGroupResult = {
+  status: "JOINED" | "FAILED";
+  error?: string;
+};
+
 export interface MessagingProvider {
   readonly name: string;
   connectInstance(instanceId: string): Promise<ConnectInstanceResult>;
   disconnectInstance(instanceId: string): Promise<void>;
   sendTextMessage(params: SendTextMessageParams): Promise<SendResult>;
   sendGroupInvite(params: SendGroupInviteParams): Promise<SendResult>;
+  joinGroup(params: JoinGroupParams): Promise<JoinGroupResult>;
   verifyWebhookSignature(rawBody: string, signatureHeader: string | undefined): boolean;
 }
