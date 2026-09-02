@@ -44,3 +44,19 @@ groupsRouter.post("/:id/decision", async (req, res, next) => {
     next(err);
   }
 });
+
+groupsRouter.post("/:id/join-all", async (req, res, next) => {
+  try {
+    res.status(201).json(await groupsService.joinAll(req.tenantId!, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+groupsRouter.get("/:id/joins", async (req, res, next) => {
+  try {
+    res.json(await groupsService.listJoins(req.tenantId!, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
