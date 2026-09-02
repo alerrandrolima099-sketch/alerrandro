@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Wifi, WifiOff, Trash2 } from "lucide-react";
+import { Plus, Wifi, WifiOff, Trash2, Bot } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
 
@@ -15,7 +15,11 @@ type Instance = {
   lastError: string | null;
   lastActivityAt: string | null;
   createdAt: string;
+  aiAutoReplyEnabled: boolean;
+  aiSystemPrompt: string | null;
 };
+
+type AiDraft = { enabled: boolean; prompt: string };
 
 const PROVIDER_OPTIONS = [
   { value: "MOCK", label: "Mock (testes, sem WhatsApp real)" },
@@ -29,10 +33,24 @@ export default function InstancesPage() {
   const [name, setName] = useState("");
   const [provider, setProvider] = useState("MOCK");
   const [busy, setBusy] = useState<string | null>(null);
+  const [aiDraft, setAiDraft] = useState<Record<string, AiDraft>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function load() {
-    setInstances(await api<Instance[]>("/instances"));
+    const data = await api<Instance[]>("/instances");
+    setInstances(data);
+    // Só inicializa o rascunho de IA na primeira vez que vê cada instância -
+    // não sobrescreve o que o usuário está digitando/marcando enquanto o
+    // polling de QR Code roda em segundo plano.
+    setAiDraft((prev) => {
+      const next = { ...prev };
+      for (const inst of data) {
+        if (!(inst.id in next)) {
+          next[inst.id] = { enabled: inst.aiAutoReplyEnabled, prompt: inst.aiSystemPrompt ?? "" };
+        }
+      }
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -93,6 +111,31 @@ export default function InstancesPage() {
     if (!confirm("Excluir esta instância?")) return;
     await api(`/instances/${id}`, { method: "DELETE" });
     await load();
+  }
+
+  function updateDraft(id: string, patch: Partial<AiDraft>) {
+    setAiDraft((prev) => ({ ...prev, [id]: { ...(prev[id] ?? { enabled: false, prompt: "" }), ...patch } }));
+  }
+
+  // Resposta automática por IA (ChatGPT) nas Conversas - seção 34. Envia com
+  // um atraso e limite por hora definidos no backend para simular tempo de
+  // digitação humano, nunca instantâneo.
+  async function saveAiSettings(id: string) {
+    const draft = aiDraft[id];
+    if (!draft) return;
+    setBusy(id);
+    try {
+      await api(`/instances/${id}/ai-settings`, {
+        method: "PATCH",
+        body: {
+          aiAutoReplyEnabled: draft.enabled,
+          aiSystemPrompt: draft.prompt.trim() ? draft.prompt : null,
+        },
+      });
+      await load();
+    } finally {
+      setBusy(null);
+    }
   }
 
   return (
@@ -181,6 +224,35 @@ export default function InstancesPage() {
                   )}
                 </div>
               )}
+
+              <div className="mb-4 bg-background border border-border rounded-lg p-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={aiDraft[inst.id]?.enabled ?? inst.aiAutoReplyEnabled}
+                    onChange={(e) => updateDraft(inst.id, { enabled: e.target.checked })}
+                  />
+                  <Bot size={14} /> Resposta automática por IA (ChatGPT)
+                </label>
+                <p className="text-xs text-muted mt-1 mb-2">
+                  Quando ligada, a IA responde automaticamente novas mensagens desta conversa (com um pequeno
+                  atraso, como um atendente digitando), exceto quando um atendente humano assumir a conversa.
+                </p>
+                <textarea
+                  value={aiDraft[inst.id]?.prompt ?? inst.aiSystemPrompt ?? ""}
+                  onChange={(e) => updateDraft(inst.id, { prompt: e.target.value })}
+                  placeholder="Persona / instruções da IA (opcional). Ex: Você é atendente da Loja X, responda de forma curta e cordial..."
+                  rows={2}
+                  className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary resize-y"
+                />
+                <button
+                  disabled={busy === inst.id}
+                  onClick={() => saveAiSettings(inst.id)}
+                  className="mt-2 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50"
+                >
+                  Salvar IA
+                </button>
+              </div>
 
               <div className="flex gap-2">
                 {inst.status !== "CONNECTED" ? (
