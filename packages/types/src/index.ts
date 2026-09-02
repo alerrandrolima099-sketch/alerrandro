@@ -27,6 +27,7 @@ export const QUEUE_NAMES = {
   AUTOMATION: "automationQueue",
   WEBHOOK: "webhookQueue",
   NOTIFICATION: "notificationQueue",
+  INSTANCE_CONNECT: "instanceConnectQueue",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -58,4 +59,8 @@ export type NotificationJobData = {
   type: string;
   title: string;
   message: string;
+};
+
+export type InstanceConnectJobData = {
+  instanceId: string;
 };
