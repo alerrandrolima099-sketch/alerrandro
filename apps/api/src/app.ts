@@ -20,6 +20,7 @@ import { webhooksRouter } from "./modules/webhooks/webhooks.routes";
 import { healthRouter } from "./modules/health/health.routes";
 import { dashboardRouter } from "./modules/dashboard/dashboard.routes";
 import { warmupRouter } from "./modules/warmup/warmup.routes";
+import { personasRouter } from "./modules/personas/personas.routes";
 
 export function createApp() {
   const app = express();
@@ -50,6 +51,7 @@ export function createApp() {
   app.use("/webhooks", webhooksRouter);
   app.use("/dashboard", dashboardRouter);
   app.use("/warmup-pairs", warmupRouter);
+  app.use("/personas", personasRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
