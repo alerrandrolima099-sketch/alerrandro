@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { Send, Pause, Play, Phone } from "lucide-react";
+import { Send, Pause, Play, Phone, AlertCircle, RotateCw } from "lucide-react";
 import { api, API_URL } from "@/lib/api";
 
 type Conversation = {
@@ -117,13 +117,33 @@ export default function ConversationsPage() {
     await refreshOpenMessages(c.id);
   }
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    if (!selected || !draft.trim()) return;
-    await api(`/conversations/${selected.id}/messages`, { method: "POST", body: { content: draft } });
-    setDraft("");
+  async function sendContent(content: string) {
+    if (!selected || !content.trim()) return;
+    await api(`/conversations/${selected.id}/messages`, { method: "POST", body: { content } });
     await refreshOpenMessages(selected.id);
   }
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    if (!draft.trim()) return;
+    await sendContent(draft);
+    setDraft("");
+  }
+
+  // Reenviar uma mensagem que falhou (ex: a instância caiu no meio do
+  // atendimento - agora com reconexão automática isso deve ser raro, mas o
+  // atendente não deveria precisar redigitar o texto pra tentar de novo.
+  async function resend(content: string) {
+    await sendContent(content);
+  }
+
+  const STATUS_LABEL: Record<string, string> = {
+    QUEUED: "enviando...",
+    SENT: "enviada",
+    DELIVERED: "entregue",
+    READ: "lida",
+    FAILED: "falhou ao enviar",
+  };
 
   async function toggleAutomation() {
     if (!selected) return;
@@ -187,20 +207,41 @@ export default function ConversationsPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.map((m) => (
-              <div key={m.id} className={`max-w-[70%] ${m.direction === "OUTBOUND" ? "ml-auto" : ""}`}>
-                <div
-                  className={`rounded-xl px-3 py-2 text-sm ${
-                    m.direction === "OUTBOUND" ? "bg-primary/15 text-white" : "bg-surface border border-border"
-                  }`}
-                >
-                  {m.content}
+            {messages.map((m) => {
+              const failed = m.direction === "OUTBOUND" && m.status === "FAILED";
+              return (
+                <div key={m.id} className={`max-w-[70%] ${m.direction === "OUTBOUND" ? "ml-auto" : ""}`}>
+                  <div
+                    className={`rounded-xl px-3 py-2 text-sm ${
+                      failed
+                        ? "bg-red-500/10 border border-red-500/40 text-white"
+                        : m.direction === "OUTBOUND"
+                        ? "bg-primary/15 text-white"
+                        : "bg-surface border border-border"
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                  <div
+                    className={`text-xs mt-1 flex items-center gap-1 ${
+                      failed ? "text-red-400" : "text-muted"
+                    } ${m.direction === "OUTBOUND" ? "justify-end" : ""}`}
+                  >
+                    {failed && <AlertCircle size={12} />}
+                    {new Date(m.createdAt).toLocaleTimeString("pt-BR")} · {STATUS_LABEL[m.status] ?? m.status}
+                    {failed && (
+                      <button
+                        onClick={() => resend(m.content)}
+                        className="ml-1 flex items-center gap-1 underline hover:text-red-300"
+                        title="A instância provavelmente estava desconectada no momento do envio. Verifique em Instâncias e tente de novo."
+                      >
+                        <RotateCw size={11} /> tentar de novo
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className={`text-xs text-muted mt-1 ${m.direction === "OUTBOUND" ? "text-right" : ""}`}>
-                  {new Date(m.createdAt).toLocaleTimeString("pt-BR")} · {m.status}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {messages.length === 0 && <p className="text-sm text-muted text-center mt-8">Nenhuma mensagem ainda.</p>}
           </div>
 
