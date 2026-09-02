@@ -15,6 +15,8 @@ import {
   SendTextMessageParams,
   ConnectInstanceResult,
   SendGroupInviteParams,
+  JoinGroupParams,
+  JoinGroupResult,
 } from "./MessagingProvider";
 import { env } from "@whatsapp-saas/config";
 import { prisma } from "@whatsapp-saas/database";
@@ -426,6 +428,42 @@ export class BaileysProvider implements MessagingProvider {
       text: `Você foi convidado para nossa comunidade: ${params.inviteLink}`,
       idempotencyKey: `invite_${params.to}_${params.inviteLink}`,
     });
+  }
+
+  /**
+   * Entrar em um grupo com todos os números (seção 15/38): usa o mesmo
+   * padrão de trava de segurança do sendTextMessage (timeout de 20s tratando
+   * o socket como morto se o WhatsApp nunca responder), já que
+   * sock.groupAcceptInvite pode ficar pendurado do mesmo jeito.
+   */
+  async joinGroup(params: JoinGroupParams): Promise<JoinGroupResult> {
+    const sock = this.sockets.get(params.instanceId);
+    if (!sock) {
+      return {
+        status: "FAILED",
+        error: "Instância WHATSAPP_QR não está conectada. Reconecte escaneando o QR Code.",
+      };
+    }
+    try {
+      await Promise.race([
+        sock.groupAcceptInvite(params.inviteCode),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("join_timeout")), 20_000)),
+      ]);
+      return { status: "JOINED" };
+    } catch (err: any) {
+      if (err?.message === "join_timeout") {
+        // eslint-disable-next-line no-console
+        console.error(`[BaileysProvider] entrada no grupo travou por 20s (instância ${params.instanceId})`);
+        return {
+          status: "FAILED",
+          error: "O WhatsApp não confirmou a entrada no grupo a tempo. Tente novamente em alguns instantes.",
+        };
+      }
+      // O Baileys lança erros variados aqui (convite expirado/inválido,
+      // já é membro, grupo cheio, etc.) - repassamos a mensagem original,
+      // é a informação mais específica que temos disponível.
+      return { status: "FAILED", error: err?.message || "Falha desconhecida ao entrar no grupo." };
+    }
   }
 
   verifyWebhookSignature(_rawBody: string, _signatureHeader: string | undefined): boolean {
