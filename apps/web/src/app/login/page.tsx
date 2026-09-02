@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { AuthShell } from "@/components/AuthShell";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -25,58 +27,64 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-surface border border-border rounded-2xl p-8">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center font-bold text-black">W</div>
-          <span className="font-semibold text-lg">WhatsApp SaaS</span>
-        </div>
-
-        <h1 className="text-xl font-semibold mb-1">Entrar</h1>
-        <p className="text-sm text-muted mb-6">Acesse sua conta para gerenciar suas instâncias.</p>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm text-muted block mb-1.5">E-mail</label>
+    <AuthShell title="Bem-vindo de volta" subtitle="Acesse sua conta para gerenciar suas instâncias.">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-sm text-muted block mb-1.5">E-mail</label>
+          <div className="relative">
+            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className="w-full bg-background/70 border border-border rounded-lg pl-9 pr-3 py-2.5 text-sm outline-none focus:border-primary transition-colors"
               placeholder="voce@empresa.com"
             />
           </div>
-          <div>
-            <label className="text-sm text-muted block mb-1.5">Senha</label>
+        </div>
+        <div>
+          <label className="text-sm text-muted block mb-1.5">Senha</label>
+          <div className="relative">
+            <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm outline-none focus:border-primary"
+              className="w-full bg-background/70 border border-border rounded-lg pl-9 pr-3 py-2.5 text-sm outline-none focus:border-primary transition-colors"
               placeholder="••••••••"
             />
           </div>
+        </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
+        )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary hover:bg-primaryDark text-black font-medium rounded-lg py-2.5 text-sm transition-colors disabled:opacity-60"
-          >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-primary to-primaryDark hover:brightness-110 text-black font-medium rounded-lg py-2.5 text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-glow"
+        >
+          {loading ? (
+            <>
+              <Loader2 size={16} className="animate-spin" /> Entrando...
+            </>
+          ) : (
+            <>
+              Entrar <ArrowRight size={16} />
+            </>
+          )}
+        </button>
+      </form>
 
-        <p className="text-sm text-muted mt-6 text-center">
-          Não tem conta?{" "}
-          <Link href="/register" className="text-primary hover:underline">
-            Cadastre-se
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p className="text-sm text-muted mt-6 text-center">
+        Não tem conta?{" "}
+        <Link href="/register" className="text-primary hover:underline font-medium">
+          Cadastre-se
+        </Link>
+      </p>
+    </AuthShell>
   );
 }
