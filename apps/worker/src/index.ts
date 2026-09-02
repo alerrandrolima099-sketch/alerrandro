@@ -4,6 +4,7 @@ import { registerSessionProcessor } from "./processors/session.processor";
 import { registerAutomationProcessor } from "./processors/automation.processor";
 import { registerWebhookProcessor } from "./processors/webhook.processor";
 import { registerNotificationProcessor } from "./processors/notification.processor";
+import { registerInstanceConnectProcessor, resumeQrInstancesOnStartup } from "./processors/instanceConnect.processor";
 
 /**
  * Entry point do worker (seção 12/apps/worker).
@@ -20,9 +21,17 @@ async function main() {
   registerAutomationProcessor();
   registerWebhookProcessor();
   registerNotificationProcessor();
+  registerInstanceConnectProcessor();
 
   // eslint-disable-next-line no-console
   console.log("[worker] all processors registered, waiting for jobs...");
+
+  try {
+    await resumeQrInstancesOnStartup();
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[worker] failed to resume WHATSAPP_QR sessions on startup", err);
+  }
 }
 
 main().catch((err) => {
