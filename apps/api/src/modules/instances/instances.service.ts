@@ -3,6 +3,7 @@ import { getMessagingProvider, enqueueInstanceConnect } from "../../messaging";
 import { AppError } from "../../middleware/error.middleware";
 import { writeLog } from "../../lib/logger";
 import { encrypt } from "../../lib/encryption";
+import { attachInstanceStats } from "./instanceHealth";
 import type { MessagingProviderType } from "@whatsapp-saas/database";
 
 /**
@@ -11,14 +12,28 @@ import type { MessagingProviderType } from "@whatsapp-saas/database";
  * nunca implementada diretamente aqui.
  */
 export class InstancesService {
+  /** Lista "Meus Números" (seção 39) - cada instância já vem com saúde,
+   * nível de aquecimento, dias aquecendo, grupos, mensagens e evolução. */
   async list(tenantId: string) {
-    return prisma.instance.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+    const instances = await prisma.instance.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+    return attachInstanceStats(tenantId, instances);
   }
 
+  /** Lookup interno leve (sem estatísticas) - usado por connect/disconnect/
+   * pause/remove/updateAiSettings, que só precisam confirmar que a
+   * instância existe e pertence ao tenant antes de agir. */
   async getById(tenantId: string, id: string) {
     const instance = await prisma.instance.findFirst({ where: { id, tenantId } });
     if (!instance) throw new AppError(404, "Instância não encontrada");
     return instance;
+  }
+
+  /** Usado pela rota GET /:id (card/detalhe de um número) - mesma
+   * instância, enriquecida com as mesmas estatísticas da listagem. */
+  async getByIdWithStats(tenantId: string, id: string) {
+    const instance = await this.getById(tenantId, id);
+    const [withStats] = await attachInstanceStats(tenantId, [instance]);
+    return withStats;
   }
 
   async create(
