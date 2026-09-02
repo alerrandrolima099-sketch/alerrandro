@@ -13,7 +13,7 @@ import clsx from "clsx";
 
 const clientNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/instances", label: "Instâncias", icon: Smartphone },
+  { href: "/instances", label: "Meus Números", icon: Smartphone },
   { href: "/warmup", label: "Aquecimento", icon: Flame },
   { href: "/conversations", label: "Conversas", icon: MessageSquare },
   { href: "/contacts", label: "Contatos", icon: Users },
