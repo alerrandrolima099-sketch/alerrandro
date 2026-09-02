@@ -7,6 +7,7 @@ import type {
   AutomationExecuteJobData,
   WebhookProcessJobData,
   NotificationJobData,
+  InstanceConnectJobData,
 } from "@whatsapp-saas/types";
 
 /**
@@ -47,12 +48,21 @@ export const notificationQueue = new Queue<NotificationJobData>(QUEUE_NAMES.NOTI
   defaultJobOptions,
 });
 
+// Conexão de instâncias via QR Code (WHATSAPP_QR): abrir/retomar sessão Baileys
+// é assíncrono (gera QR, espera scan, só então conecta), então a API só
+// enfileira e o worker processa - mesma separação das demais filas.
+export const instanceConnectQueue = new Queue<InstanceConnectJobData>(QUEUE_NAMES.INSTANCE_CONNECT, {
+  connection: redisConnection,
+  defaultJobOptions: { ...defaultJobOptions, attempts: 1 },
+});
+
 export const queueEvents = {
   message: new QueueEvents(QUEUE_NAMES.MESSAGE, { connection: redisConnection }),
   session: new QueueEvents(QUEUE_NAMES.SESSION, { connection: redisConnection }),
   automation: new QueueEvents(QUEUE_NAMES.AUTOMATION, { connection: redisConnection }),
   webhook: new QueueEvents(QUEUE_NAMES.WEBHOOK, { connection: redisConnection }),
   notification: new QueueEvents(QUEUE_NAMES.NOTIFICATION, { connection: redisConnection }),
+  instanceConnect: new QueueEvents(QUEUE_NAMES.INSTANCE_CONNECT, { connection: redisConnection }),
 };
 
 /** Enfileira envio de mensagem com chave de idempotência (jobId = idempotencyKey). */
@@ -74,4 +84,9 @@ export async function enqueueWebhookProcess(data: WebhookProcessJobData) {
 
 export async function enqueueNotification(data: NotificationJobData) {
   return notificationQueue.add("send-notification", data);
+}
+
+/** Enfileira (re)conexão de uma instância WHATSAPP_QR - idempotente por instância. */
+export async function enqueueInstanceConnect(data: InstanceConnectJobData) {
+  return instanceConnectQueue.add("connect-instance", data, { jobId: data.instanceId });
 }
