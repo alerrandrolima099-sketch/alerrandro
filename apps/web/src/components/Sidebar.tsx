@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Smartphone, MessageSquare, Users, Workflow,
-  Clock, UsersRound, ScrollText, Settings, Building2, LogOut, Menu, X,
+  Clock, UsersRound, ScrollText, Settings, Building2, LogOut, Menu, X, Flame,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -13,6 +13,7 @@ import clsx from "clsx";
 const clientNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/instances", label: "Instâncias", icon: Smartphone },
+  { href: "/warmup", label: "Aquecimento", icon: Flame },
   { href: "/conversations", label: "Conversas", icon: MessageSquare },
   { href: "/contacts", label: "Contatos", icon: Users },
   { href: "/automations", label: "Automações", icon: Workflow },
