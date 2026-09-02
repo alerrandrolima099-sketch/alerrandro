@@ -3,6 +3,8 @@ FROM node:20-alpine
 # Diretório de trabalho = raiz do monorepo dentro do container.
 WORKDIR /app
 
+RUN apk add --no-cache openssl
+
 # Copiamos a raiz + TODOS os packages internos + a própria API.
 # IMPORTANTE: outras apps (worker, web) não são necessárias para esta imagem,
 # então não são copiadas - mantém o build enxuto sem quebrar o workspace,
