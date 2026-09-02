@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, Pause, Play, MessageSquare, Users } from "lucide-react";
+import { Send, Pause, Play } from "lucide-react";
 import { api } from "@/lib/api";
-import { Tabs } from "@/components/ui/Tabs";
-import { ContactsPanel } from "@/components/panels/ContactsPanel";
-import { EmptyState } from "@/components/ui/EmptyState";
 
 type Conversation = {
   id: string;
@@ -17,7 +14,7 @@ type Conversation = {
 
 type Message = { id: string; direction: "INBOUND" | "OUTBOUND"; content: string; status: string; createdAt: string };
 
-function ConversationsPanel() {
+export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -54,13 +51,11 @@ function ConversationsPanel() {
   }
 
   return (
-    <div className="h-[calc(100vh-13rem)] md:h-[calc(100vh-12rem)] -mx-6 md:-mx-8 flex border-t border-border">
-      <div className="w-full md:w-80 border-r border-border overflow-y-auto shrink-0">
-        {conversations.length === 0 && (
-          <div className="p-4">
-            <EmptyState icon={MessageSquare} title="Nenhuma conversa ainda" description="Conversas monitoradas aparecerão aqui assim que houver troca de mensagens." />
-          </div>
-        )}
+    <div className="h-[calc(100vh-4rem)] -m-6 md:-m-8 flex">
+      <div className="w-full md:w-80 border-r border-border overflow-y-auto">
+        <div className="p-4 border-b border-border">
+          <h1 className="font-semibold">Conversas</h1>
+        </div>
         {conversations.map((c) => (
           <button
             key={c.id}
@@ -72,10 +67,11 @@ function ConversationsPanel() {
             {c.messages[0] && <div className="text-xs text-muted truncate mt-1">{c.messages[0].content}</div>}
           </button>
         ))}
+        {conversations.length === 0 && <p className="p-4 text-sm text-muted">Nenhuma conversa ainda.</p>}
       </div>
 
       {selected ? (
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <div>
               <div className="font-medium">{selected.contact.name}</div>
@@ -105,7 +101,7 @@ function ConversationsPanel() {
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              placeholder="Escreva uma mensagem (envio manual)..."
+              placeholder="Escreva uma mensagem (atendimento manual)..."
               className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <button className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium flex items-center gap-2">
@@ -114,34 +110,8 @@ function ConversationsPanel() {
           </form>
         </div>
       ) : (
-        <div className="flex-1 hidden md:flex items-center justify-center text-muted text-sm">Selecione uma conversa</div>
+        <div className="flex-1 flex items-center justify-center text-muted text-sm">Selecione uma conversa</div>
       )}
-    </div>
-  );
-}
-
-export default function ConversationsPage() {
-  const [tab, setTab] = useState("conversations");
-
-  return (
-    <div>
-      <div className="mb-1">
-        <h1 className="text-2xl font-semibold mb-1">Conversas</h1>
-        <p className="text-muted text-sm max-w-2xl">
-          Monitoramento das conversas e gerenciamento dos contatos que autorizaram o recebimento de mensagens.
-        </p>
-      </div>
-
-      <Tabs
-        tabs={[
-          { key: "conversations", label: "Conversas", icon: <MessageSquare size={14} /> },
-          { key: "contacts", label: "Contatos", icon: <Users size={14} /> },
-        ]}
-        active={tab}
-        onChange={setTab}
-      />
-
-      {tab === "conversations" ? <ConversationsPanel /> : <ContactsPanel />}
     </div>
   );
 }

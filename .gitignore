@@ -2,8 +2,3 @@
 .env
 .env.*
 !.env.example
-.next/
-dist/
-next-env.d.ts
-*.tsbuildinfo
-package-lock.json

@@ -1,9 +1,5 @@
 FROM node:20-alpine
 
-# Ver explicação em apps/api/Dockerfile: o Prisma precisa de libssl no
-# Alpine/musl para os binários do schema/query engine funcionarem.
-RUN apk add --no-cache openssl
-
 WORKDIR /app
 
 COPY package.json package-lock.json* ./

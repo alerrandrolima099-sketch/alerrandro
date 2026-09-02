@@ -1,11 +1,5 @@
 FROM node:20-alpine
 
-# O binário "schema engine" do Prisma (usado por "prisma db push"/"migrate",
-# diferente do "query engine" usado em runtime pelo PrismaClient) precisa de
-# libssl para funcionar no Alpine/musl; sem isso o preDeployCommand falha com
-# "Could not parse schema engine response".
-RUN apk add --no-cache openssl
-
 # Diretório de trabalho = raiz do monorepo dentro do container.
 WORKDIR /app
 

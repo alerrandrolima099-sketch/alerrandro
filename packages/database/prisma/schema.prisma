@@ -38,10 +38,6 @@ enum InstanceStatus {
 enum MessagingProviderType {
   MOCK
   WHATSAPP_CLOUD_API
-  // Mantido por compatibilidade: existem Instances em produção com este valor
-  // gravado antes deste schema; removê-lo quebra "prisma db push" (Postgres
-  // recusa apagar um valor de enum em uso).
-  WHATSAPP_QR
 }
 
 enum SenderStatus {

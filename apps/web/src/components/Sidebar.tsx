@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Smartphone, MessageSquare, Flame, Workflow,
-  CalendarClock, BarChart3, Bell, Settings, Building2, LogOut, Menu, X, ScrollText,
+  LayoutDashboard, Smartphone, MessageSquare, Users, Workflow,
+  Clock, UsersRound, ScrollText, Settings, Building2, LogOut, Menu, X,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -12,13 +12,13 @@ import clsx from "clsx";
 
 const clientNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/instances", label: "Meus Números", icon: Smartphone },
-  { href: "/sessions", label: "Aquecimento", icon: Flame },
+  { href: "/instances", label: "Instâncias", icon: Smartphone },
   { href: "/conversations", label: "Conversas", icon: MessageSquare },
+  { href: "/contacts", label: "Contatos", icon: Users },
   { href: "/automations", label: "Automações", icon: Workflow },
-  { href: "/agenda", label: "Agenda", icon: CalendarClock },
-  { href: "/reports", label: "Relatórios", icon: BarChart3 },
-  { href: "/alerts", label: "Alertas", icon: Bell },
+  { href: "/sessions", label: "Sessões", icon: Clock },
+  { href: "/groups", label: "Grupos", icon: UsersRound },
+  { href: "/logs", label: "Logs", icon: ScrollText },
   { href: "/settings", label: "Configurações", icon: Settings },
 ];
 
@@ -54,16 +54,14 @@ export function Sidebar() {
       >
         <div className="px-5 py-5 border-b border-border">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-fire flex items-center justify-center font-bold text-black">
-              <Flame size={18} />
-            </div>
-            <span className="font-semibold text-lg leading-tight">Aquecimento WhatsApp</span>
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-black">W</div>
+            <span className="font-semibold text-lg">WhatsApp SaaS</span>
           </div>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
           {nav.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname?.startsWith(href + "/");
+            const active = pathname === href;
             return (
               <Link
                 key={href}
