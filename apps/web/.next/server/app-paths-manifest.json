@@ -1,0 +1,19 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/page": "app/page.js",
+  "/login/page": "app/login/page.js",
+  "/register/page": "app/register/page.js",
+  "/(app)/admin/page": "app/(app)/admin/page.js",
+  "/(app)/admin/logs/page": "app/(app)/admin/logs/page.js",
+  "/(app)/admin/senders/page": "app/(app)/admin/senders/page.js",
+  "/(app)/automations/page": "app/(app)/automations/page.js",
+  "/(app)/admin/tenants/page": "app/(app)/admin/tenants/page.js",
+  "/(app)/conversations/page": "app/(app)/conversations/page.js",
+  "/(app)/contacts/page": "app/(app)/contacts/page.js",
+  "/(app)/dashboard/page": "app/(app)/dashboard/page.js",
+  "/(app)/instances/page": "app/(app)/instances/page.js",
+  "/(app)/groups/page": "app/(app)/groups/page.js",
+  "/(app)/logs/page": "app/(app)/logs/page.js",
+  "/(app)/sessions/page": "app/(app)/sessions/page.js",
+  "/(app)/settings/page": "app/(app)/settings/page.js"
+}

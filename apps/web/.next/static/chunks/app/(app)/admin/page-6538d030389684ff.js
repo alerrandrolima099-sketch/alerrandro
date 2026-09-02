@@ -1,0 +1,41 @@
+(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[865],{5477:function(e,t,n){Promise.resolve().then(n.bind(n,5906))},5906:function(e,t,n){"use strict";n.r(t),n.d(t,{default:function(){return d}});var r=n(7573),s=n(7653),a=n(3100),i=n(4835),o=n(6561),c=n(1804),l=n(6067),u=n(8230);function d(){let[e,t]=(0,s.useState)(null);return(0,s.useEffect)(()=>{(0,l.hi)("/admin/metrics").then(t)},[]),(0,r.jsxs)("div",{children:[(0,r.jsx)("h1",{className:"text-2xl font-semibold mb-1",children:"Dashboard Admin"}),(0,r.jsx)("p",{className:"text-muted mb-6",children:"Vis\xe3o global da plataforma."}),e&&(0,r.jsxs)("div",{className:"grid grid-cols-2 md:grid-cols-3 gap-4",children:[(0,r.jsx)(u.R,{label:"Clientes",value:e.tenants,icon:a.Z}),(0,r.jsx)(u.R,{label:"Inst\xe2ncias totais",value:e.instances,icon:i.Z}),(0,r.jsx)(u.R,{label:"Inst\xe2ncias conectadas",value:e.connectedInstances,icon:o.Z,accent:"bg-green-500/15 text-green-400"}),(0,r.jsx)(u.R,{label:"Sess\xf5es ativas",value:e.activeSessions,icon:c.Z,accent:"bg-yellow-500/15 text-yellow-400"}),(0,r.jsx)(u.R,{label:"Mensagens hoje",value:e.messagesToday,icon:i.Z})]})]})}},8230:function(e,t,n){"use strict";n.d(t,{R:function(){return l}});var r=n(7573),s=n(9565);/**
+ * @license lucide-react v0.436.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */let a=(0,s.Z)("TrendingUp",[["polyline",{points:"22 7 13.5 15.5 8.5 10.5 2 17",key:"126l90"}],["polyline",{points:"16 7 22 7 22 13",key:"kwv8wd"}]]),i=(0,s.Z)("TrendingDown",[["polyline",{points:"22 17 13.5 8.5 8.5 13.5 2 7",key:"1r2t7k"}],["polyline",{points:"16 17 22 17 22 11",key:"11uiuu"}]]);var o=n(7908);let c={primary:"bg-primary/15 text-primary",success:"bg-success/15 text-success",warning:"bg-warning/15 text-warning",danger:"bg-danger/15 text-danger",info:"bg-info/15 text-info",fire:"bg-fire/15 text-fire",neutral:"bg-gray-500/15 text-gray-400"};function l(e){let{label:t,value:n,icon:s,accent:l,variant:u="primary",trend:d,hint:f}=e;return(0,r.jsxs)("div",{className:"bg-surface border border-border rounded-xl p-4 flex items-start gap-4",children:[(0,r.jsx)("div",{className:(0,o.Z)("w-10 h-10 rounded-lg flex items-center justify-center shrink-0",null!=l?l:c[u]),children:(0,r.jsx)(s,{size:20})}),(0,r.jsxs)("div",{className:"min-w-0",children:[(0,r.jsxs)("div",{className:"flex items-center gap-2",children:[(0,r.jsx)("div",{className:"text-2xl font-semibold leading-tight",children:n}),void 0!==d&&(0,r.jsxs)("span",{className:(0,o.Z)("flex items-center gap-0.5 text-xs font-medium",d>=0?"text-success":"text-danger"),children:[d>=0?(0,r.jsx)(a,{size:12}):(0,r.jsx)(i,{size:12}),Math.abs(d),"%"]})]}),(0,r.jsx)("div",{className:"text-sm text-muted truncate",children:t}),f&&(0,r.jsx)("div",{className:"text-xs text-muted/70 mt-0.5",children:f})]})]})}},6067:function(e,t,n){"use strict";n.d(t,{d0:function(){return a},hi:function(){return c},yE:function(){return i}});let r="http://localhost:4000";function s(){return{accessToken:localStorage.getItem("accessToken"),refreshToken:localStorage.getItem("refreshToken")}}function a(e,t){localStorage.setItem("accessToken",e),localStorage.setItem("refreshToken",t)}function i(){localStorage.removeItem("accessToken"),localStorage.removeItem("refreshToken")}async function o(){let{refreshToken:e}=s();if(!e)return null;let t=await fetch("".concat(r,"/auth/refresh"),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({refreshToken:e})});if(!t.ok)return null;let n=await t.json();return a(n.accessToken,n.refreshToken),n.accessToken}async function c(e){let t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:{},{accessToken:n}=s(),a=async n=>{var s;return fetch("".concat(r).concat(e),{method:null!==(s=t.method)&&void 0!==s?s:"GET",headers:{"Content-Type":"application/json",...n?{Authorization:"Bearer ".concat(n)}:{},...t.headers},body:t.body?JSON.stringify(t.body):void 0})},i=await a(n);if(401===i.status&&n){let e=await o();e&&(i=await a(e))}if(!i.ok){let e="Erro ".concat(i.status);try{var c;let t=await i.json();e=null!==(c=t.message)&&void 0!==c?c:e}catch(e){}throw Error(e)}if(204!==i.status)return i.json()}},9565:function(e,t,n){"use strict";n.d(t,{Z:function(){return c}});var r=n(7653);/**
+ * @license lucide-react v0.436.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */let s=e=>e.replace(/([a-z0-9])([A-Z])/g,"$1-$2").toLowerCase(),a=function(){for(var e=arguments.length,t=Array(e),n=0;n<e;n++)t[n]=arguments[n];return t.filter((e,t,n)=>!!e&&n.indexOf(e)===t).join(" ")};/**
+ * @license lucide-react v0.436.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */var i={xmlns:"http://www.w3.org/2000/svg",width:24,height:24,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"};/**
+ * @license lucide-react v0.436.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */let o=(0,r.forwardRef)((e,t)=>{let{color:n="currentColor",size:s=24,strokeWidth:o=2,absoluteStrokeWidth:c,className:l="",children:u,iconNode:d,...f}=e;return(0,r.createElement)("svg",{ref:t,...i,width:s,height:s,stroke:n,strokeWidth:c?24*Number(o)/Number(s):o,className:a("lucide",l),...f},[...d.map(e=>{let[t,n]=e;return(0,r.createElement)(t,n)}),...Array.isArray(u)?u:[u]])}),c=(e,t)=>{let n=(0,r.forwardRef)((n,i)=>{let{className:c,...l}=n;return(0,r.createElement)(o,{ref:i,iconNode:t,className:a("lucide-".concat(s(e)),c),...l})});return n.displayName="".concat(e),n}},3100:function(e,t,n){"use strict";n.d(t,{Z:function(){return r}});/**
+ * @license lucide-react v0.436.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */let r=(0,n(9565).Z)("Building2",[["path",{d:"M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z",key:"1b4qmf"}],["path",{d:"M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2",key:"i71pzd"}],["path",{d:"M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2",key:"10jefs"}],["path",{d:"M10 6h4",key:"1itunk"}],["path",{d:"M10 10h4",key:"tcdvrf"}],["path",{d:"M10 14h4",key:"kelpxr"}],["path",{d:"M10 18h4",key:"1ulq68"}]])},1804:function(e,t,n){"use strict";n.d(t,{Z:function(){return r}});/**
+ * @license lucide-react v0.436.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */let r=(0,n(9565).Z)("Clock",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["polyline",{points:"12 6 12 12 16 14",key:"68esgv"}]])},4835:function(e,t,n){"use strict";n.d(t,{Z:function(){return r}});/**
+ * @license lucide-react v0.436.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */let r=(0,n(9565).Z)("Smartphone",[["rect",{width:"14",height:"20",x:"5",y:"2",rx:"2",ry:"2",key:"1yt0o3"}],["path",{d:"M12 18h.01",key:"mhygvu"}]])},6561:function(e,t,n){"use strict";n.d(t,{Z:function(){return r}});/**
+ * @license lucide-react v0.436.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */let r=(0,n(9565).Z)("Wifi",[["path",{d:"M12 20h.01",key:"zekei9"}],["path",{d:"M2 8.82a15 15 0 0 1 20 0",key:"dnpr2z"}],["path",{d:"M5 12.859a10 10 0 0 1 14 0",key:"1x1e6c"}],["path",{d:"M8.5 16.429a5 5 0 0 1 7 0",key:"1bycff"}]])},7908:function(e,t,n){"use strict";t.Z=function(){for(var e,t,n=0,r="",s=arguments.length;n<s;n++)(e=arguments[n])&&(t=function e(t){var n,r,s="";if("string"==typeof t||"number"==typeof t)s+=t;else if("object"==typeof t){if(Array.isArray(t)){var a=t.length;for(n=0;n<a;n++)t[n]&&(r=e(t[n]))&&(s&&(s+=" "),s+=r)}else for(r in t)t[r]&&(s&&(s+=" "),s+=r)}return s}(e))&&(r&&(r+=" "),r+=t);return r}}},function(e){e.O(0,[293,286,744],function(){return e(e.s=5477)}),_N_E=e.O()}]);
