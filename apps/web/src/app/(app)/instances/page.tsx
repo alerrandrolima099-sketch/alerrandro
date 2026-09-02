@@ -19,7 +19,10 @@ type Instance = {
   createdAt: string;
   aiAutoReplyEnabled: boolean;
   aiSystemPrompt: string | null;
+  personaId: string | null;
 };
+
+type PersonaLite = { id: string; name: string };
 
 type WarmupPairLite = {
   id: string;
@@ -30,7 +33,7 @@ type WarmupPairLite = {
   sentToday: number;
 };
 
-type AiDraft = { enabled: boolean; prompt: string };
+type AiDraft = { enabled: boolean; prompt: string; personaId: string | null };
 
 const PROVIDER_OPTIONS = [
   { value: "MOCK", label: "Mock (testes, sem WhatsApp real)" },
@@ -93,6 +96,7 @@ function InstanceAvatar({ instance, size = 48 }: { instance: Instance; size?: nu
 
 export default function InstancesPage() {
   const [instances, setInstances] = useState<Instance[]>([]);
+  const [personas, setPersonas] = useState<PersonaLite[]>([]);
   const [warmupByInstance, setWarmupByInstance] = useState<Record<string, WarmupPairLite>>({});
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
@@ -102,11 +106,13 @@ export default function InstancesPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function load() {
-    const [data, pairs] = await Promise.all([
+    const [data, pairs, personasData] = await Promise.all([
       api<Instance[]>("/instances"),
       api<WarmupPairLite[]>("/warmup-pairs").catch(() => [] as WarmupPairLite[]),
+      api<PersonaLite[]>("/personas").catch(() => [] as PersonaLite[]),
     ]);
     setInstances(data);
+    setPersonas(personasData);
 
     // Mapa instanceId -> par de aquecimento (o card de cada número mostra um
     // indicador rápido de aquecimento, sem duplicar a tela de Aquecimento).
@@ -124,7 +130,7 @@ export default function InstancesPage() {
       const next = { ...prev };
       for (const inst of data) {
         if (!(inst.id in next)) {
-          next[inst.id] = { enabled: inst.aiAutoReplyEnabled, prompt: inst.aiSystemPrompt ?? "" };
+          next[inst.id] = { enabled: inst.aiAutoReplyEnabled, prompt: inst.aiSystemPrompt ?? "", personaId: inst.personaId };
         }
       }
       return next;
@@ -206,7 +212,10 @@ export default function InstancesPage() {
   }
 
   function updateDraft(id: string, patch: Partial<AiDraft>) {
-    setAiDraft((prev) => ({ ...prev, [id]: { ...(prev[id] ?? { enabled: false, prompt: "" }), ...patch } }));
+    setAiDraft((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] ?? { enabled: false, prompt: "", personaId: null }), ...patch },
+    }));
   }
 
   // Resposta automática por IA (ChatGPT) nas Conversas - seção 34. Envia com
@@ -222,6 +231,7 @@ export default function InstancesPage() {
         body: {
           aiAutoReplyEnabled: draft.enabled,
           aiSystemPrompt: draft.prompt.trim() ? draft.prompt : null,
+          personaId: draft.personaId,
         },
       });
       await load();
@@ -382,13 +392,32 @@ export default function InstancesPage() {
                     Quando ligada, a IA responde automaticamente novas mensagens desta conversa (com um pequeno
                     atraso, como um atendente digitando), exceto quando um atendente humano assumir a conversa.
                   </p>
+                  <select
+                    value={aiDraft[inst.id]?.personaId ?? inst.personaId ?? ""}
+                    onChange={(e) => updateDraft(inst.id, { personaId: e.target.value || null })}
+                    className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary transition-colors mb-2"
+                  >
+                    <option value="">Sem perfil (usar só o texto abaixo, se houver)</option>
+                    {personas.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
                   <textarea
                     value={aiDraft[inst.id]?.prompt ?? inst.aiSystemPrompt ?? ""}
                     onChange={(e) => updateDraft(inst.id, { prompt: e.target.value })}
-                    placeholder="Persona / instruções da IA (opcional). Ex: Você é atendente da Loja X, responda de forma curta e cordial..."
+                    placeholder="Texto livre (opcional) - se preenchido, tem prioridade sobre o perfil selecionado acima."
                     rows={2}
                     className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary resize-y transition-colors"
                   />
+                  <p className="text-[11px] text-muted mt-1">
+                    Gerencie os perfis em{" "}
+                    <a href="/personas" className="text-primary hover:underline">
+                      Perfis de Conversa
+                    </a>
+                    .
+                  </p>
                   <button
                     disabled={busy === inst.id}
                     onClick={() => saveAiSettings(inst.id)}
