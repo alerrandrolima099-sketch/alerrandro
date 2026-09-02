@@ -71,7 +71,7 @@ export class BaileysProvider implements MessagingProvider {
     return dir;
   }
 
-  async connectInstance(instanceId: string): Promise<ConnectInstanceResult> {
+  async connectInstance(instanceId: string, opts: { fresh?: boolean } = {}): Promise<ConnectInstanceResult> {
     const existingSocket = this.sockets.get(instanceId);
     if (existingSocket) {
       return { status: "CONNECTED" };
@@ -80,7 +80,7 @@ export class BaileysProvider implements MessagingProvider {
     const inFlight = this.connecting.get(instanceId);
     if (inFlight) return inFlight;
 
-    const promise = this.startSocket(instanceId);
+    const promise = this.startSocket(instanceId, opts.fresh ?? false);
     this.connecting.set(instanceId, promise);
     try {
       return await promise;
@@ -89,8 +89,33 @@ export class BaileysProvider implements MessagingProvider {
     }
   }
 
-  private async startSocket(instanceId: string): Promise<ConnectInstanceResult> {
+  private async startSocket(instanceId: string, fresh = false): Promise<ConnectInstanceResult> {
+    // eslint-disable-next-line no-console
+    console.log(`[BaileysProvider] startSocket instanceId=${instanceId} fresh=${fresh}`);
+
+    if (fresh) {
+      // "fresh" só é true quando este connectInstance() veio de um clique
+      // explícito do usuário em "Conectar" (via fila instanceConnectQueue -
+      // ver apps/worker/src/processors/instanceConnect.processor.ts).
+      // Descartamos qualquer sessão anterior aqui de propósito: se o worker
+      // reiniciou (deploy, crash) no meio de um pareamento anterior que
+      // nunca terminou, os arquivos do useMultiFileAuthState ficam parciais/
+      // inconsistentes - reaproveitá-los faz o handshake do Baileys travar
+      // pra sempre (sem nunca emitir "qr" nem fechar a conexão com erro),
+      // deixando a tela do usuário presa em "Gerando QR Code..." mesmo com
+      // o timeout de 45s abaixo, já que esse timeout só protege ESTA
+      // chamada - não impede um pareamento igualmente travado de começar de
+      // novo na próxima tentativa se a sessão corrompida continuar em disco.
+      try {
+        fs.rmSync(this.sessionDir(instanceId), { recursive: true, force: true });
+      } catch {
+        /* melhor esforço */
+      }
+    }
+
     const { state, saveCreds } = await useMultiFileAuthState(this.sessionDir(instanceId));
+    // eslint-disable-next-line no-console
+    console.log(`[BaileysProvider] auth state carregado para ${instanceId}, abrindo socket...`);
 
     return new Promise<ConnectInstanceResult>((resolve) => {
       let settled = false;
@@ -175,6 +200,10 @@ export class BaileysProvider implements MessagingProvider {
 
       sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
+        // eslint-disable-next-line no-console
+        console.log(
+          `[BaileysProvider] connection.update instanceId=${instanceId} connection=${connection ?? "-"} qr=${qr ? "yes" : "no"}`
+        );
 
         if (qr) {
           try {
