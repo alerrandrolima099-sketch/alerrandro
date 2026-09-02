@@ -18,6 +18,7 @@ import {
 } from "./MessagingProvider";
 import { env } from "@whatsapp-saas/config";
 import { prisma } from "@whatsapp-saas/database";
+import { handleInboundMessage } from "../inbound/handleInboundMessage";
 
 /**
  * Adapter NÃO OFICIAL que simula o WhatsApp Web (biblioteca Baileys) para
@@ -106,6 +107,43 @@ export class BaileysProvider implements MessagingProvider {
       });
 
       sock.ev.on("creds.update", saveCreds);
+
+      // Mensagens recebidas de contatos (seção 34): único jeito de capturar
+      // inbound em instâncias WHATSAPP_QR, já que este provedor não usa
+      // webhooks HTTP do Meta - tudo chega por eventos do próprio socket.
+      // Alimenta o mesmo pipeline (handleInboundMessage) usado pelo webhook
+      // da Cloud API, então automação e resposta automática por IA
+      // funcionam igual nos dois provedores.
+      sock.ev.on("messages.upsert", async ({ messages, type }) => {
+        if (type !== "notify") return;
+        for (const msg of messages) {
+          try {
+            if (msg.key.fromMe) continue; // ignora eco das próprias mensagens enviadas
+
+            const remoteJid = msg.key.remoteJid;
+            if (!remoteJid || remoteJid.endsWith("@g.us")) continue; // grupos não são tratados por enquanto
+
+            const text =
+              msg.message?.conversation ??
+              msg.message?.extendedTextMessage?.text ??
+              msg.message?.imageMessage?.caption ??
+              msg.message?.videoMessage?.caption ??
+              null;
+            if (!text) continue; // ignora mídia sem legenda, reações, etc.
+
+            const from = remoteJid.split("@")[0];
+            await handleInboundMessage({
+              instanceId,
+              from,
+              text,
+              providerMsgId: msg.key.id ?? undefined,
+            });
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error(`[BaileysProvider] falha ao processar mensagem recebida (instância ${instanceId}):`, err);
+          }
+        }
+      });
 
       sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
