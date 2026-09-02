@@ -268,27 +268,44 @@ export class BaileysProvider implements MessagingProvider {
         if (connection === "close") {
           this.sockets.delete(instanceId);
           const statusCode = (lastDisconnect?.error as Boom | undefined)?.output?.statusCode;
+          // eslint-disable-next-line no-console
+          console.log(`[BaileysProvider] conexão fechada instanceId=${instanceId} statusCode=${statusCode ?? "desconhecido"}`);
 
-          // 515 (restartRequired): o Baileys FECHA a conexão de propósito
-          // logo depois que o celular confirma o pareamento (escaneou o QR)
-          // e espera que a gente abra um socket novo imediatamente usando as
-          // credenciais que acabaram de ser salvas - isso é o fluxo normal,
-          // não uma falha. Sem isso o usuário via "erro" mesmo escaneando
-          // certinho.
-          if (statusCode === DisconnectReason.restartRequired) {
+          const loggedOut = statusCode === DisconnectReason.loggedOut;
+
+          // Qualquer motivo de queda que NÃO seja logout (rede instável entre
+          // o servidor e o WhatsApp, o próprio WhatsApp reiniciando a sessão,
+          // o código 515/restartRequired que acontece de propósito logo após
+          // escanear o QR, etc.) - tenta reconectar sozinho antes de desistir.
+          // Isso é importante porque quem está atendendo pelo Conversas não
+          // fica olhando a tela de Instâncias o tempo todo: sem isso, uma
+          // queda momentânea deixava o número "conectado" na tela mas incapaz
+          // de enviar/receber até alguém notar e clicar em Conectar de novo -
+          // foi exatamente o que causou mensagens que pareciam enviadas no
+          // Conversas mas nunca chegavam no WhatsApp do cliente.
+          if (!loggedOut) {
             const attempts = (this.restartAttempts.get(instanceId) ?? 0) + 1;
             this.restartAttempts.set(instanceId, attempts);
             if (attempts <= 5) {
-              this.startSocket(instanceId).catch(() => {
-                /* erros da nova tentativa já são gravados no banco */
-              });
+              const isRestartRequired = statusCode === DisconnectReason.restartRequired;
+              const retry = () =>
+                this.startSocket(instanceId, false).catch(() => {
+                  /* erros da nova tentativa já são gravados no banco */
+                });
+              if (isRestartRequired) {
+                retry();
+              } else {
+                // Motivos diferentes de 515 não são "o fluxo normal esperado"
+                // - dá uma pequena folga antes de tentar de novo, pra não
+                // martelar o servidor do WhatsApp em loop apertado se ele
+                // estiver realmente recusando a conexão por algum tempo.
+                setTimeout(retry, 3_000);
+              }
               return;
             }
             // Muitas tentativas seguidas sem sucesso - desiste e reporta erro
             // em vez de ficar reconectando pra sempre.
           }
-
-          const loggedOut = statusCode === DisconnectReason.loggedOut;
 
           if (loggedOut) {
             // Sessão invalidada (logout pelo celular) - limpa credenciais para
