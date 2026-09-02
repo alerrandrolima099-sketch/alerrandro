@@ -1,5 +1,5 @@
 import { Worker, Job } from "bullmq";
-import { redisConnection, automationEngine, writeLog } from "@whatsapp-saas/core";
+import { redisConnection, handleInboundMessage, writeLog } from "@whatsapp-saas/core";
 import { prisma } from "@whatsapp-saas/database";
 import { QUEUE_NAMES } from "@whatsapp-saas/types";
 import type { WebhookProcessJobData } from "@whatsapp-saas/types";
@@ -22,36 +22,21 @@ export function registerWebhookProcessor() {
 
         switch (event.eventType) {
           case "message_received": {
-            // Correlaciona por telefone -> contato -> conversa mais recente -> sessão.
+            // Ponto único de entrada (seção 34): mesma função usada pelo
+            // listener "messages.upsert" do Baileys (WHATSAPP_QR) - garante
+            // que Contact/Conversation são criados na primeira mensagem, e
+            // que a IA (se habilitada na instância) responde automaticamente
+            // quando não há automação/sessão ativa. Requer que o payload
+            // informe de qual instância veio o evento.
+            const instanceId = payload?.instanceId;
             const phone = payload?.from;
-            if (phone) {
-              const contact = await prisma.contact.findFirst({ where: { phone } });
-              if (contact) {
-                const conversation = await prisma.conversation.findFirst({
-                  where: { contactId: contact.id },
-                  orderBy: { updatedAt: "desc" },
-                });
-                if (conversation) {
-                  await prisma.message.create({
-                    data: {
-                      conversationId: conversation.id,
-                      instanceId: conversation.instanceId,
-                      contactId: contact.id,
-                      direction: "INBOUND",
-                      status: "DELIVERED",
-                      content: payload?.text ?? "",
-                      providerMsgId: payload?.messageId,
-                    },
-                  });
-                  const session = await prisma.session.findFirst({
-                    where: { contactId: contact.id, status: "ACTIVE" },
-                    orderBy: { createdAt: "desc" },
-                  });
-                  if (session) {
-                    await automationEngine.resumeAfterReply(session.id);
-                  }
-                }
-              }
+            if (instanceId && phone) {
+              await handleInboundMessage({
+                instanceId,
+                from: phone,
+                text: payload?.text ?? "",
+                providerMsgId: payload?.messageId,
+              });
             }
             break;
           }
