@@ -17,7 +17,7 @@ instancesRouter.get("/", async (req, res, next) => {
 
 instancesRouter.get("/:id", async (req, res, next) => {
   try {
-    res.json(await instancesService.getById(req.tenantId!, req.params.id));
+    res.json(await instancesService.getByIdWithStats(req.tenantId!, req.params.id));
   } catch (err) {
     next(err);
   }
