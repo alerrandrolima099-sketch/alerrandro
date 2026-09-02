@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Smartphone, MessageSquare, Users, Workflow,
   Clock, UsersRound, ScrollText, Settings, Building2, LogOut, Menu, X, Flame,
+  MessageCircle, ShieldCheck, User,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -40,7 +41,7 @@ export function Sidebar() {
   return (
     <>
       <button
-        className="md:hidden fixed top-4 left-4 z-40 bg-surface p-2 rounded-lg border border-border"
+        className="md:hidden fixed top-4 left-4 z-40 bg-surface/90 backdrop-blur p-2 rounded-lg border border-border shadow-soft"
         onClick={() => setOpen(!open)}
         aria-label="Menu"
       >
@@ -49,18 +50,20 @@ export function Sidebar() {
 
       <aside
         className={clsx(
-          "fixed md:static z-30 top-0 left-0 h-full w-64 bg-surface border-r border-border flex flex-col transition-transform",
+          "fixed md:static z-30 top-0 left-0 h-full w-64 bg-surface/95 backdrop-blur border-r border-border flex flex-col transition-transform",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
         <div className="px-5 py-5 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-black">W</div>
-            <span className="font-semibold text-lg">WhatsApp SaaS</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
+              <MessageCircle size={16} className="text-black" strokeWidth={2.5} />
+            </div>
+            <span className="font-semibold text-lg tracking-tight">WhatsApp SaaS</span>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
           {nav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
@@ -69,18 +72,34 @@ export function Sidebar() {
                 href={href}
                 onClick={() => setOpen(false)}
                 className={clsx(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
-                  active ? "bg-primary/15 text-primary" : "text-muted hover:bg-surfaceHover hover:text-white"
+                  "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
+                  active
+                    ? "bg-gradient-to-r from-primary/15 to-accent/10 text-primary font-medium"
+                    : "text-muted hover:bg-surfaceHover hover:text-white"
                 )}
               >
-                <Icon size={18} />
+                {active && (
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary" aria-hidden />
+                )}
+                <Icon size={18} className={active ? "" : "text-muted group-hover:text-white transition-colors"} />
                 {label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-3 border-t border-border">
+        <div className="p-3 border-t border-border space-y-2">
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-background/60 border border-borderLight">
+            <div className="w-7 h-7 rounded-full bg-surfaceHover flex items-center justify-center shrink-0">
+              <User size={13} className="text-muted" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-medium truncate">
+                {user?.role === "ADMIN" ? "Administrador" : "Cliente"}
+              </div>
+            </div>
+            {user?.role === "ADMIN" && <ShieldCheck size={14} className="text-accent shrink-0" />}
+          </div>
           <button
             onClick={logout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted hover:bg-surfaceHover hover:text-white transition-colors"
@@ -91,7 +110,7 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {open && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setOpen(false)} />}
+      {open && <div className="fixed inset-0 bg-black/50 z-20 md:hidden backdrop-blur-sm" onClick={() => setOpen(false)} />}
     </>
   );
 }
