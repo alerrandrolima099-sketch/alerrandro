@@ -54,6 +54,20 @@ instancesRouter.post("/:id/disconnect", async (req, res, next) => {
   }
 });
 
+const updateAiSettingsSchema = z.object({
+  aiAutoReplyEnabled: z.boolean().optional(),
+  aiSystemPrompt: z.string().max(4000).nullable().optional(),
+});
+
+instancesRouter.patch("/:id/ai-settings", async (req, res, next) => {
+  try {
+    const body = updateAiSettingsSchema.parse(req.body);
+    res.json(await instancesService.updateAiSettings(req.tenantId!, req.params.id, body));
+  } catch (err) {
+    next(err);
+  }
+});
+
 instancesRouter.post("/:id/pause", async (req, res, next) => {
   try {
     res.json(await instancesService.pause(req.tenantId!, req.params.id));
