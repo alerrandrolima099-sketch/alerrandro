@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { Worker, Job } from "bullmq";
-import { redisConnection, generateAiReply, enqueueSendMessage, writeLog } from "@whatsapp-saas/core";
+import { redisConnection, generateAiReply, enqueueSendMessage, writeLog, emitToTenant } from "@whatsapp-saas/core";
 import { prisma } from "@whatsapp-saas/database";
 import { QUEUE_NAMES } from "@whatsapp-saas/types";
 import type { AiReplyJobData } from "@whatsapp-saas/types";
@@ -92,6 +92,10 @@ export function registerAiReplyProcessor() {
         content: result.text,
         idempotencyKey: randomUUID(),
       });
+
+      // Tempo real (seção 36): a resposta da IA também é uma nova mensagem
+      // na conversa - a tela de Conversas precisa saber.
+      emitToTenant(conversation.tenantId, "conversation:message", { conversationId });
 
       await writeLog({
         tenantId: conversation.tenantId,
