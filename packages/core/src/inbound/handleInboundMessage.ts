@@ -32,6 +32,24 @@ export async function handleInboundMessage(params: {
   const phone = params.from;
   if (!phone || !params.text) return;
 
+  // Tráfego do aquecimento de números (seção 35): quando esta mensagem vem
+  // do número de uma instância parceira de aquecimento ATIVA, ignora aqui -
+  // o warmup.processor.ts já controla os dois lados da conversa sozinho
+  // (histórico, alternância, ritmo). Sem isso, essa mesma mensagem também
+  // cairia no fluxo normal de cliente (criaria Contact/Conversation "de
+  // verdade" e, se a IA de atendimento estiver ligada, geraria uma segunda
+  // resposta concorrente e fora do ritmo pensado para aquecimento).
+  const warmupPairs = await prisma.warmupPair.findMany({
+    where: { enabled: true, OR: [{ instanceAId: instance.id }, { instanceBId: instance.id }] },
+    include: { instanceA: true, instanceB: true },
+  });
+  const fromDigits = phone.replace(/\D/g, "");
+  const isWarmupTraffic = warmupPairs.some((pair) => {
+    const partner = pair.instanceAId === instance.id ? pair.instanceB : pair.instanceA;
+    return !!partner.phoneNumber && partner.phoneNumber.replace(/\D/g, "") === fromDigits;
+  });
+  if (isWarmupTraffic) return;
+
   const contact = await prisma.contact.upsert({
     where: { tenantId_phone: { tenantId: instance.tenantId, phone } },
     update: { lastInteraction: new Date() },
