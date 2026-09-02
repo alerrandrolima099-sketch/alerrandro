@@ -23,7 +23,11 @@ instancesRouter.get("/:id", async (req, res, next) => {
   }
 });
 
-const createSchema = z.object({ name: z.string().min(2), providerConfig: z.record(z.unknown()).optional() });
+const createSchema = z.object({
+  name: z.string().min(2),
+  provider: z.enum(["MOCK", "WHATSAPP_CLOUD_API", "WHATSAPP_QR"]).optional(),
+  providerConfig: z.record(z.unknown()).optional(),
+});
 
 instancesRouter.post("/", async (req, res, next) => {
   try {
