@@ -8,3 +8,4 @@ export * from "./automation/automationEngine";
 export * from "./queues/queueService";
 export * from "./ai/openaiClient";
 export * from "./inbound/handleInboundMessage";
+export * from "./realtime/emitter";
