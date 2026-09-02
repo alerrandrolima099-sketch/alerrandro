@@ -157,6 +157,11 @@ export default function InstancesPage() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Total de números conectados e ativos agora - pedido explícito do
+  // usuário no topo da página, além do card "Números ativos" que já existe
+  // no Dashboard. Derivado da própria lista já carregada, sem chamada nova.
+  const activeCount = instances.filter((i) => i.active).length;
+
   async function load() {
     const [data, personasData] = await Promise.all([
       api<Instance[]>("/instances"),
@@ -288,6 +293,12 @@ export default function InstancesPage() {
         <div>
           <h1 className="text-2xl font-semibold mb-1">Meus Números</h1>
           <p className="text-muted">Conecte, pause e acompanhe a saúde e o aquecimento de cada número.</p>
+          {instances.length > 0 && (
+            <p className="text-sm mt-1.5">
+              <span className="text-green-400 font-medium">{activeCount}</span>
+              <span className="text-muted"> de {instances.length} números conectados e ativos</span>
+            </p>
+          )}
         </div>
         <button
           onClick={() => setShowCreate(true)}
