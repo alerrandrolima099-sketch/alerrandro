@@ -7,6 +7,7 @@ import { registerNotificationProcessor } from "./processors/notification.process
 import { registerInstanceConnectProcessor, resumeQrInstancesOnStartup } from "./processors/instanceConnect.processor";
 import { registerAiReplyProcessor } from "./processors/aiReply.processor";
 import { registerWarmupProcessor } from "./processors/warmup.processor";
+import { registerGroupJoinProcessor } from "./processors/groupJoin.processor";
 
 /**
  * Entry point do worker (seção 12/apps/worker).
@@ -26,6 +27,7 @@ async function main() {
   registerInstanceConnectProcessor();
   registerAiReplyProcessor();
   registerWarmupProcessor();
+  registerGroupJoinProcessor();
 
   // eslint-disable-next-line no-console
   console.log("[worker] all processors registered, waiting for jobs...");
