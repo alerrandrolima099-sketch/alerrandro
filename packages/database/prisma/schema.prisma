@@ -165,8 +165,30 @@ model Tenant {
   webhookEvents WebhookEvent[]
   jobs          Job[]
   warmupPairs   WarmupPair[]
+  personas      Persona[]
 
   @@map("tenants")
+}
+
+// Perfil de conversa (seção 38) - persona reutilizável entre instâncias.
+// Antes disso só existia Instance.aiSystemPrompt (texto livre, um por
+// instância, não reaproveitável). Um Perfil pode ser associado a várias
+// instâncias; o texto de Instance.aiSystemPrompt, quando preenchido,
+// continua tendo prioridade sobre o Perfil (nada muda pra quem já usava
+// só o campo de texto livre).
+model Persona {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  systemPrompt String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  instances Instance[]
+
+  @@index([tenantId])
+  @@map("personas")
 }
 
 model User {
@@ -232,8 +254,11 @@ model Instance {
   // sessão de automação (fluxo) ativa aguardando resposta.
   aiAutoReplyEnabled Boolean           @default(false)
   // Prompt de sistema (persona) usado nas respostas da IA. Quando nulo, usa
-  // um prompt padrão genérico de atendimento.
+  // o Perfil de Conversa associado (personaId) - e se nenhum dos dois
+  // estiver definido, usa um prompt padrão genérico de atendimento.
   aiSystemPrompt String?               @db.Text
+  personaId      String?
+  persona        Persona?              @relation(fields: [personaId], references: [id], onDelete: SetNull)
   lastError      String?
   lastActivityAt DateTime?
   createdAt      DateTime              @default(now())
@@ -247,6 +272,7 @@ model Instance {
   warmupPairsAsB WarmupPair[] @relation("WarmupInstanceB")
 
   @@index([tenantId])
+  @@index([personaId])
   @@map("instances")
 }
 
