@@ -166,6 +166,7 @@ model Tenant {
   jobs          Job[]
   warmupPairs   WarmupPair[]
   personas      Persona[]
+  groupJoins    GroupJoin[]
 
   @@map("tenants")
 }
@@ -270,6 +271,7 @@ model Instance {
   messages      Message[]
   warmupPairsAsA WarmupPair[] @relation("WarmupInstanceA")
   warmupPairsAsB WarmupPair[] @relation("WarmupInstanceB")
+  groupJoins     GroupJoin[]
 
   @@index([tenantId])
   @@index([personaId])
@@ -488,6 +490,7 @@ model Group {
   updatedAt   DateTime @updatedAt
 
   invites Invite[]
+  joins   GroupJoin[]
 
   @@index([tenantId])
   @@map("groups")
@@ -505,6 +508,41 @@ model Invite {
   @@index([contactId])
   @@index([groupId])
   @@map("invites")
+}
+
+enum GroupJoinStatus {
+  QUEUED
+  JOINING
+  JOINED
+  FAILED
+}
+
+// Entrar em um grupo com todos os números (seção 15/38): diferente de
+// Invite (que registra convites enviados a CONTATOS/clientes), isto
+// registra tentativas das PRÓPRIAS instâncias do tenant entrarem num grupo
+// via link de convite - só é possível para instâncias WHATSAPP_QR (a API
+// oficial não permite entrar em grupos por link). Cada linha é uma
+// tentativa de uma instância específica, para dar visibilidade de progresso
+// na tela (fila/entrando/entrou/falhou) quando o usuário manda todos os
+// números conectados entrarem de uma vez.
+model GroupJoin {
+  id         String          @id @default(uuid())
+  tenantId   String
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groupId    String
+  group      Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  instanceId String
+  instance   Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  status     GroupJoinStatus @default(QUEUED)
+  error      String?
+  joinedAt   DateTime?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([tenantId])
+  @@index([groupId])
+  @@index([instanceId])
+  @@map("group_joins")
 }
 
 // ---------------------------------------------------------------------------
