@@ -172,7 +172,7 @@ export class BaileysProvider implements MessagingProvider {
           let profilePicUrl: string | null = null;
           try {
             if (sock.user?.id) {
-              profilePicUrl = await sock.profilePictureUrl(sock.user.id, "image");
+              profilePicUrl = (await sock.profilePictureUrl(sock.user.id, "image")) ?? null;
             }
           } catch {
             profilePicUrl = null;
@@ -309,8 +309,8 @@ export class BaileysProvider implements MessagingProvider {
   }
 
   verifyWebhookSignature(_rawBody: string, _signatureHeader: string | undefined): boolean {
-    // WHATSAPP_QR não usa webhooks do Meta - mensagens chegam via evento
-    // "messages.upsert" do próprio socket, não por HTTP. Não aplicável.
+    // WHATSAPP_QR não usa webhooks do Meta - mensagens chegam por eventos
+    // do próprio socket, não por HTTP. Não aplicável.
     return false;
   }
 }
