@@ -214,6 +214,23 @@ export class BaileysProvider implements MessagingProvider {
             });
             settleOnce({ status: "CONNECTING", qrCode: qrDataUrl });
           } catch (err: any) {
+            // Se o update falhar (ex: a instância foi removida do banco
+            // enquanto este job ficava na fila - pode acontecer com jobs
+            // antigos que ficaram represados por horas antes de uma
+            // correção de bug), a instância é órfã: não faz sentido manter
+            // esse socket vivo. Sem fechar aqui, o WhatsApp continua girando
+            // um QR Code novo a cada ~20s pra sempre (protocolo padrão de
+            // renovação de QR), e cada renovação tentava gravar no banco de
+            // novo, repetindo esse mesmo erro indefinidamente até o
+            // processo reiniciar.
+            // eslint-disable-next-line no-console
+            console.error(`[BaileysProvider] falha ao salvar QR Code (instância ${instanceId}), encerrando socket órfão:`, err.message);
+            try {
+              (sock as any).end?.(undefined);
+            } catch {
+              /* ignora */
+            }
+            this.sockets.delete(instanceId);
             settleOnce({ status: "ERROR", error: err.message });
           }
         }
