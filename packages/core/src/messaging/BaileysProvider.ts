@@ -383,9 +383,38 @@ export class BaileysProvider implements MessagingProvider {
     try {
       const digits = params.to.replace(/\D/g, "");
       const jid = `${digits}@s.whatsapp.net`;
-      const sent = await sock.sendMessage(jid, { text: params.text });
+
+      // Trava de segurança: em alguns casos o socket fica "aberto" do nosso
+      // lado (connection.update nunca disparou "close") mas o envio nunca
+      // recebe resposta do WhatsApp - sock.sendMessage() fica pendurado pra
+      // sempre. Sem um limite aqui, o job na fila travava por mais de um
+      // minuto até o BullMQ desistir sozinho com "Timed Out", sem nenhuma
+      // mensagem de erro útil pro atendente. Depois desse tempo, tratamos o
+      // socket como morto (zumbi): derruba de propósito para que o handler
+      // de "close" (com a reconexão automática) entre em ação.
+      const sent = await Promise.race([
+        sock.sendMessage(jid, { text: params.text }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("send_timeout")), 20_000)
+        ),
+      ]);
       return { providerMessageId: sent?.key?.id ?? "", status: "SENT" };
     } catch (err: any) {
+      if (err?.message === "send_timeout") {
+        // eslint-disable-next-line no-console
+        console.error(`[BaileysProvider] envio travou por 20s (instância ${params.instanceId}) - socket tratado como morto, forçando reconexão`);
+        this.sockets.delete(params.instanceId);
+        try {
+          (sock as any).end?.(undefined);
+        } catch {
+          /* ignora */
+        }
+        return {
+          providerMessageId: "",
+          status: "FAILED",
+          error: "O WhatsApp não confirmou o envio a tempo. A instância será reconectada automaticamente - tente enviar de novo em alguns segundos.",
+        };
+      }
       return { providerMessageId: "", status: "FAILED", error: err.message };
     }
   }
