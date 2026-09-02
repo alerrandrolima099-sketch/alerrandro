@@ -33,10 +33,28 @@ function extractInviteCode(inviteLink: string): string | null {
  * e as entradas são escalonadas com um delay aleatório crescente entre uma
  * instância e outra, para reduzir o risco de o WhatsApp identificar um
  * padrão de bot (vários números entrando no mesmo grupo ao mesmo tempo).
+ *
+ * Catálogo global (seção 40): um grupo com tenantId nulo foi criado pelo
+ * admin em /admin/grupos e fica disponível para TODOS os tenants - eles
+ * podem oferecer convite, ver e usar "Entrar com todos os números" nele
+ * normalmente, só não podem editar/excluir (isso é exclusivo do admin, ver
+ * adminUpdate abaixo). Os grupos privados que cada tenant cria por conta
+ * própria (tenantId preenchido) continuam funcionando exatamente como
+ * antes, visíveis só para quem criou.
  */
 export class GroupsService {
   async list(tenantId: string) {
-    return prisma.group.findMany({ where: { tenantId, isActive: true } });
+    const groups = await prisma.group.findMany({
+      where: { isActive: true, OR: [{ tenantId }, { tenantId: null }] },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Marca cada grupo como global (catálogo do admin) ou privado deste
+    // tenant, e traz o catálogo global pro topo da lista - Array.sort é
+    // estável, então a ordem por data dentro de cada grupo é preservada.
+    return groups
+      .map((g) => ({ ...g, isGlobal: g.tenantId === null }))
+      .sort((a, b) => Number(b.isGlobal) - Number(a.isGlobal));
   }
 
   async create(tenantId: string, params: { name: string; description?: string; inviteLink: string; category?: string }) {
@@ -58,7 +76,9 @@ export class GroupsService {
 
     const [contact, group] = await Promise.all([
       prisma.contact.findFirstOrThrow({ where: { id: contactId, tenantId } }),
-      prisma.group.findFirstOrThrow({ where: { id: groupId, tenantId } }),
+      // O grupo pode ser privado deste tenant OU global (catálogo do admin) -
+      // em ambos os casos o tenant pode oferecer/enviar o convite.
+      prisma.group.findFirstOrThrow({ where: { id: groupId, OR: [{ tenantId }, { tenantId: null }] } }),
     ]);
 
     const instance = await prisma.instance.findFirst({ where: { tenantId, status: "CONNECTED" } });
@@ -80,9 +100,11 @@ export class GroupsService {
    * anterior. Cria uma linha GroupJoin por instância (status QUEUED) e
    * devolve a lista - o front-end usa isso pra abrir o painel de progresso
    * e faz polling em listJoins() até todas saírem de QUEUED/JOINING.
+   * Funciona tanto para grupos privados do tenant quanto para grupos do
+   * catálogo global (seção 40).
    */
   async joinAll(tenantId: string, groupId: string) {
-    const group = await prisma.group.findFirst({ where: { id: groupId, tenantId } });
+    const group = await prisma.group.findFirst({ where: { id: groupId, OR: [{ tenantId }, { tenantId: null }] } });
     if (!group) throw new AppError(404, "Grupo não encontrado");
 
     const inviteCode = extractInviteCode(group.inviteLink);
@@ -122,13 +144,40 @@ export class GroupsService {
     return joins;
   }
 
-  /** Histórico de tentativas de entrada num grupo, mais recentes primeiro. */
+  /** Histórico de tentativas de entrada num grupo, mais recentes primeiro.
+   * Sempre restrito ao próprio tenant - mesmo num grupo global, cada tenant
+   * só vê as tentativas feitas com os SEUS próprios números. */
   async listJoins(tenantId: string, groupId: string) {
     return prisma.groupJoin.findMany({
       where: { tenantId, groupId },
       orderBy: { createdAt: "desc" },
       include: { instance: { select: { id: true, name: true, phoneNumber: true } } },
     });
+  }
+
+  // -------------------------------------------------------------------
+  // Catálogo global (seção 40) - usado só pelas rotas /admin/groups,
+  // guardadas por requireRole("ADMIN"). Um grupo criado aqui tem
+  // tenantId nulo e passa a aparecer para todos os tenants em list()
+  // acima. Os grupos privados que cada tenant cria em POST /groups
+  // (create() acima) nunca aparecem/são editáveis por aqui.
+  // -------------------------------------------------------------------
+
+  async adminList() {
+    return prisma.group.findMany({ where: { tenantId: null }, orderBy: { createdAt: "desc" } });
+  }
+
+  async adminCreate(params: { name: string; description?: string; inviteLink: string; category?: string }) {
+    return prisma.group.create({ data: { tenantId: null, ...params } });
+  }
+
+  async adminUpdate(
+    id: string,
+    params: { name?: string; description?: string; inviteLink?: string; category?: string; isActive?: boolean }
+  ) {
+    const group = await prisma.group.findFirst({ where: { id, tenantId: null } });
+    if (!group) throw new AppError(404, "Grupo do catálogo não encontrado");
+    return prisma.group.update({ where: { id }, data: params });
   }
 }
 
