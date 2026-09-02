@@ -97,8 +97,36 @@ export class BaileysProvider implements MessagingProvider {
       const settleOnce: PendingResolver = (result) => {
         if (settled) return;
         settled = true;
+        clearTimeout(handshakeTimeout);
         resolve(result);
       };
+
+      // Trava de segurança: se em ~45s o WhatsApp não responder nem com um
+      // QR Code nem com a conexão aberta (ex: instabilidade de rede entre o
+      // servidor e os servidores do WhatsApp, ou algum bloqueio momentâneo
+      // do lado deles), desiste e marca ERROR em vez de deixar a tela do
+      // usuário "Gerando QR Code..." carregando para sempre sem explicação.
+      const handshakeTimeout = setTimeout(async () => {
+        if (settled) return;
+        try {
+          await prisma.instance.update({
+            where: { id: instanceId },
+            data: {
+              status: "ERROR",
+              lastError: "Tempo esgotado aguardando resposta do WhatsApp. Tente conectar novamente em alguns minutos.",
+            },
+          });
+        } catch {
+          /* melhor esforço - não deixa isso derrubar o processo */
+        }
+        try {
+          (sock as any).end?.(undefined);
+        } catch {
+          /* socket pode já estar em estado inválido - ignora */
+        }
+        this.sockets.delete(instanceId);
+        settleOnce({ status: "ERROR", error: "handshake_timeout" });
+      }, 45_000);
 
       const sock = makeWASocket({
         auth: state,
