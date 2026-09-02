@@ -25,6 +25,14 @@ COPY apps/web ./apps/web
 
 RUN npm install
 
+# CRÍTICO: variáveis NEXT_PUBLIC_* do Next.js são inlinadas no bundle JS em
+# tempo de BUILD, não lidas em runtime. O Railway só repassa uma variável de
+# serviço para dentro do "docker build" se ela for declarada aqui como ARG -
+# sem isso o front-end compila com o fallback "http://localhost:4000"
+# hardcoded (bug já visto em produção: login dava "Failed to fetch").
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 RUN npm run build --workspace=@whatsapp-saas/web
 
 WORKDIR /app/apps/web
