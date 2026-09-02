@@ -30,6 +30,7 @@ const adminNav = [
   { href: "/admin", label: "Dashboard Admin", icon: LayoutDashboard },
   { href: "/admin/tenants", label: "Clientes", icon: Building2 },
   { href: "/admin/senders", label: "Pool de Números", icon: Smartphone },
+  { href: "/admin/grupos", label: "Grupos", icon: UsersRound },
   { href: "/admin/logs", label: "Logs", icon: ScrollText },
 ];
 
