@@ -223,6 +223,10 @@ model Instance {
   // QR Code atual (data URL base64) para pareamento via WHATSAPP_QR - efêmero,
   // limpo assim que a instância conecta ou o código expira.
   qrCode         String?               @db.Text
+  // URL da foto de perfil do WhatsApp desta instância (buscada do próprio
+  // WhatsApp quando conecta via WHATSAPP_QR). Nula para provedores onde não
+  // buscamos isso (MOCK, WHATSAPP_CLOUD_API) ou quando o número não tem foto.
+  profilePicUrl  String?               @db.Text
   // IA (ChatGPT) responde automaticamente mensagens recebidas nesta instância
   // quando a conversa não estiver com automationPaused=true e não houver uma
   // sessão de automação (fluxo) ativa aguardando resposta.
