@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  Smartphone, Wifi, WifiOff, AlertTriangle, Clock, CheckCircle2, Send, Inbox, UserCheck, Workflow, Radio, Flame,
+  Smartphone, Wifi, WifiOff, AlertTriangle, Clock, CheckCircle2, Send, Inbox, UserCheck, Workflow, Radio, Flame, PauseCircle,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { api } from "@/lib/api";
@@ -10,12 +10,14 @@ import { StatCard } from "@/components/StatCard";
 import { ChartCard } from "@/components/ChartCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/Badge";
+import { SeverityBadge } from "@/components/SeverityBadge";
 
 type Summary = {
   totalInstances: number;
   connectedInstances: number;
   disconnectedInstances: number;
   errorInstances: number;
+  pausedInstances: number;
   activeSessions: number;
   completedSessions: number;
   messagesProcessed: number;
@@ -38,6 +40,15 @@ type WarmupPairLite = {
   lastError: string | null;
 };
 
+type DashboardAlert = {
+  id: string;
+  severity: "critical" | "warning" | "success";
+  title: string;
+  message: string;
+  instanceId: string;
+  createdAt: string;
+};
+
 function formatDateLabel(iso: string) {
   const d = new Date(`${iso}T00:00:00`);
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -47,12 +58,14 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [timeseries, setTimeseries] = useState<TimeseriesPoint[] | null>(null);
   const [pairs, setPairs] = useState<WarmupPairLite[] | null>(null);
+  const [alerts, setAlerts] = useState<DashboardAlert[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api<Summary>("/dashboard/summary").then(setSummary).catch((e) => setError(e.message));
     api<TimeseriesPoint[]>("/dashboard/messages-timeseries").then(setTimeseries).catch(() => setTimeseries([]));
     api<WarmupPairLite[]>("/warmup-pairs").then(setPairs).catch(() => setPairs([]));
+    api<DashboardAlert[]>("/dashboard/alerts").then(setAlerts).catch(() => setAlerts([]));
   }, []);
 
   const chartData = (timeseries ?? []).map((p) => ({ ...p, label: formatDateLabel(p.date) }));
@@ -69,6 +82,64 @@ export default function DashboardPage() {
       {error && (
         <p className="text-red-400 text-sm mb-4 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
       )}
+
+      {/* Visão geral dos números (seção 39) - os 4 indicadores que respondem
+          "quantos números existem, quantos ativos, desconectados e pausados"
+          de forma imediata, antes de qualquer outra métrica do produto. */}
+      {!summary ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-surface border border-border rounded-xl p-4 h-[72px] animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <StatCard label="Números cadastrados" value={summary.totalInstances} icon={Smartphone} />
+          <StatCard label="Números ativos" value={summary.connectedInstances} icon={Wifi} accent="bg-green-500/15 text-green-400" />
+          <div className={summary.disconnectedInstances > 0 ? "relative rounded-xl ring-2 ring-red-500/40" : "relative"}>
+            <StatCard label="Números desconectados" value={summary.disconnectedInstances} icon={WifiOff} accent="bg-red-500/15 text-red-400" />
+            {summary.disconnectedInstances > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-red-500 animate-pulse ring-2 ring-background" />
+            )}
+          </div>
+          <StatCard label="Números pausados" value={summary.pausedInstances} icon={PauseCircle} accent="bg-blue-500/15 text-blue-400" />
+        </div>
+      )}
+
+      {/* Alertas (seção 39/11) - eventos reais: conexão perdida, número
+          precisa de atenção (saúde < 75/100) ou número reconectado. */}
+      <div className="bg-surface border border-border rounded-xl p-5 mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium">Alertas</h3>
+          {alerts && alerts.length > 0 && (
+            <span className="text-xs text-muted">
+              {alerts.length} {alerts.length > 1 ? "recentes" : "recente"}
+            </span>
+          )}
+        </div>
+        {alerts === null ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-12 bg-surfaceHover rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : alerts.length === 0 ? (
+          <EmptyState
+            icon={CheckCircle2}
+            title="Tudo certo por aqui"
+            description="Nenhum alerta no momento - seus números estão saudáveis."
+          />
+        ) : (
+          <div className="space-y-2">
+            {alerts.map((a) => (
+              <div key={a.id} className="flex items-start gap-3 bg-background/60 border border-border rounded-lg px-3 py-2.5">
+                <SeverityBadge severity={a.severity}>{a.title}</SeverityBadge>
+                <p className="text-sm text-muted flex-1 min-w-0">{a.message}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {!summary ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
