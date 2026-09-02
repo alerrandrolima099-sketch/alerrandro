@@ -1,5 +1,5 @@
 import { Worker, Job } from "bullmq";
-import { redisConnection, getMessagingProvider, writeLog } from "@whatsapp-saas/core";
+import { redisConnection, getMessagingProvider, writeLog, emitToTenant } from "@whatsapp-saas/core";
 import { prisma } from "@whatsapp-saas/database";
 import { QUEUE_NAMES } from "@whatsapp-saas/types";
 import type { SendMessageJobData } from "@whatsapp-saas/types";
@@ -39,6 +39,10 @@ export function registerMessageProcessor() {
       });
 
       await prisma.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date() } });
+
+      // Tempo real (seção 36): status da mensagem (enviada/falhou) mudou -
+      // a tela de Conversas precisa refletir isso sem F5/polling.
+      emitToTenant(tenantId, "conversation:message", { conversationId });
 
       if (result.status === "FAILED") {
         throw new Error(result.error ?? "Falha ao enviar mensagem"); // permite retry/backoff do BullMQ
