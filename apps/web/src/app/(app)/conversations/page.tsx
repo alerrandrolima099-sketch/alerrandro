@@ -85,8 +85,15 @@ export default function ConversationsPage() {
     const accessToken = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
     if (!accessToken) return;
 
+    // O token de acesso expira periodicamente e é renovado sozinho pelas
+    // chamadas normais da API (ver tryRefresh em lib/api.ts), que atualizam
+    // o localStorage. Usar uma função aqui (em vez de um objeto fixo) faz o
+    // socket.io reler o token mais atual do localStorage a cada tentativa
+    // de (re)conexão - sem isso, depois que o token expirasse uma vez o
+    // WebSocket ficaria preso tentando reconectar com um token velho para
+    // sempre, mesmo com o resto do app já renovado e funcionando.
     const socket: Socket = io(API_URL, {
-      auth: { token: accessToken },
+      auth: (cb) => cb({ token: localStorage.getItem("accessToken") }),
       transports: ["websocket", "polling"],
     });
 
