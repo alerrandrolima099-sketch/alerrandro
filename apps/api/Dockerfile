@@ -51,4 +51,15 @@ RUN npm run build --workspace=@whatsapp-saas/api
 
 WORKDIR /app/apps/api
 EXPOSE 4000
-CMD ["node", "dist/main.js"]
+
+# Este projeto nunca usou "prisma migrate" com histórico de migrations
+# versionadas (não existe pasta prisma/migrations) - o banco sempre foi
+# sincronizado com schema.prisma via "prisma db push". Rodar isso aqui,
+# antes de iniciar o servidor, faz o schema (novas tabelas/colunas) chegar
+# sozinho no banco de produção a cada deploy, sem depender de rodar o
+# comando manualmente. Mudanças aditivas (nova tabela, nova coluna nullable)
+# nunca pedem confirmação de perda de dados; se algum dia uma mudança
+# pedisse, o comando falha (e aparece no log de deploy) em vez de aplicar
+# algo destrutivo silenciosamente - de propósito, não usamos
+# --accept-data-loss aqui.
+CMD ["sh", "-c", "cd /app && npx prisma db push --schema=packages/database/prisma/schema.prisma --skip-generate && cd /app/apps/api && node dist/main.js"]
