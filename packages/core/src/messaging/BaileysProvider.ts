@@ -165,6 +165,19 @@ export class BaileysProvider implements MessagingProvider {
           this.sockets.set(instanceId, sock);
           this.restartAttempts.delete(instanceId);
           const phoneNumber = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
+
+          // Foto de perfil do próprio número (seção 36) - melhor esforço:
+          // nem todo número tem uma definida, e às vezes a privacidade do
+          // WhatsApp bloqueia a busca. Nunca deixa isso derrubar a conexão.
+          let profilePicUrl: string | null = null;
+          try {
+            if (sock.user?.id) {
+              profilePicUrl = await sock.profilePictureUrl(sock.user.id, "image");
+            }
+          } catch {
+            profilePicUrl = null;
+          }
+
           await prisma.instance.update({
             where: { id: instanceId },
             data: {
@@ -172,6 +185,7 @@ export class BaileysProvider implements MessagingProvider {
               qrCode: null,
               lastError: null,
               ...(phoneNumber ? { phoneNumber } : {}),
+              ...(profilePicUrl ? { profilePicUrl } : {}),
             },
           });
           settleOnce({ status: "CONNECTED" });
@@ -211,6 +225,7 @@ export class BaileysProvider implements MessagingProvider {
               data: {
                 status: "DISCONNECTED",
                 qrCode: null,
+                profilePicUrl: null,
                 lastError: "Sessão desconectada pelo celular (logout).",
               },
             });
