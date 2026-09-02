@@ -32,6 +32,20 @@ export const env = {
   // padrão abaixo (/tmp) só é seguro para desenvolvimento local.
   BAILEYS_SESSIONS_DIR: process.env.BAILEYS_SESSIONS_DIR ?? "/tmp/baileys-sessions",
 
+  // Resposta automática por IA (ChatGPT/OpenAI) nas Conversas - seção 34.
+  // Sem OPENAI_API_KEY definida, a funcionalidade fica automaticamente
+  // desligada (fail-safe: nunca tenta chamar a OpenAI sem chave configurada).
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
+  OPENAI_MODEL: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+  // Atraso (ms) antes de enviar a resposta da IA - simula tempo de digitação
+  // humano e evita respostas instantâneas (padrão que aumenta o risco de
+  // bloqueio em instâncias WHATSAPP_QR, além de parecer robótico).
+  AI_REPLY_DELAY_MIN_MS: Number(process.env.AI_REPLY_DELAY_MIN_MS ?? 3000),
+  AI_REPLY_DELAY_MAX_MS: Number(process.env.AI_REPLY_DELAY_MAX_MS ?? 9000),
+  // Limite de respostas automáticas por conversa por hora - trava de
+  // segurança contra loops/custos inesperados com a API da OpenAI.
+  AI_REPLY_MAX_PER_HOUR: Number(process.env.AI_REPLY_MAX_PER_HOUR ?? 30),
+
   WEBHOOK_SECRET: process.env.WEBHOOK_SECRET ?? "dev-only-webhook-secret",
   ENCRYPTION_KEY: required("ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef"), // 32 bytes p/ AES-256
 
