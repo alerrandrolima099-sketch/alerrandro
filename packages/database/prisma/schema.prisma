@@ -164,6 +164,7 @@ model Tenant {
   sessions      Session[]
   webhookEvents WebhookEvent[]
   jobs          Job[]
+  warmupPairs   WarmupPair[]
 
   @@map("tenants")
 }
@@ -238,6 +239,8 @@ model Instance {
   conversations Conversation[]
   sessions      Session[]
   messages      Message[]
+  warmupPairsAsA WarmupPair[] @relation("WarmupInstanceA")
+  warmupPairsAsB WarmupPair[] @relation("WarmupInstanceB")
 
   @@index([tenantId])
   @@map("instances")
@@ -543,4 +546,54 @@ model Notification {
 
   @@index([tenantId])
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Aquecimento de números (seção 35): duas instâncias do mesmo tenant trocam
+// mensagens automaticamente entre si, geradas por IA, num ritmo espaçado
+// (não é o mesmo mecanismo/fila da IA que responde clientes de verdade -
+// propositalmente separado, com pacing muito mais lento e sem misturar com
+// o inbox real de Conversas).
+// ---------------------------------------------------------------------------
+
+model WarmupPair {
+  id                   String    @id @default(uuid())
+  tenantId             String
+  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  instanceAId          String
+  instanceA            Instance  @relation("WarmupInstanceA", fields: [instanceAId], references: [id], onDelete: Cascade)
+  instanceBId          String
+  instanceB            Instance  @relation("WarmupInstanceB", fields: [instanceBId], references: [id], onDelete: Cascade)
+  enabled              Boolean   @default(true)
+  // Quantas mensagens (somando as duas instâncias) tenta trocar por dia.
+  dailyMessageTarget   Int       @default(20)
+  // Intervalo aleatório (minutos) entre uma mensagem e a próxima - evita
+  // padrão robótico de envio em intervalos fixos.
+  minIntervalMinutes   Int       @default(20)
+  maxIntervalMinutes   Int       @default(90)
+  lastSenderInstanceId String?
+  nextMessageAt        DateTime  @default(now())
+  sentToday            Int       @default(0)
+  // Data (YYYY-MM-DD) usada para saber quando zerar sentToday.
+  dayKey               String?
+  lastError            String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  messages WarmupMessage[]
+
+  @@index([tenantId])
+  @@map("warmup_pairs")
+}
+
+model WarmupMessage {
+  id               String     @id @default(uuid())
+  warmupPairId     String
+  warmupPair       WarmupPair @relation(fields: [warmupPairId], references: [id], onDelete: Cascade)
+  senderInstanceId String
+  content          String
+  createdAt        DateTime   @default(now())
+
+  @@index([warmupPairId])
+  @@map("warmup_messages")
 }
