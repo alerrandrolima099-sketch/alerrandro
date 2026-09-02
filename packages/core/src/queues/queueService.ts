@@ -9,6 +9,7 @@ import type {
   NotificationJobData,
   InstanceConnectJobData,
   AiReplyJobData,
+  GroupJoinJobData,
 } from "@whatsapp-saas/types";
 
 /**
@@ -65,6 +66,17 @@ export const aiReplyQueue = new Queue<AiReplyJobData>(QUEUE_NAMES.AI_REPLY, {
   defaultJobOptions: { ...defaultJobOptions, attempts: 2 },
 });
 
+// Entrar em grupo com todos os números (seção 15/38): cada instância elegível
+// (WHATSAPP_QR conectada) gera um job aqui, já enfileirado com um delay
+// escalonado (ver groups.service.ts joinAll) - attempts:1 porque um retry
+// automático faria a MESMA instância tentar entrar de novo sem o
+// espaçamento pensado para o lote inteiro; falhas ficam visíveis para o
+// usuário na tela em vez de serem retentadas silenciosamente.
+export const groupJoinQueue = new Queue<GroupJoinJobData>(QUEUE_NAMES.GROUP_JOIN, {
+  connection: redisConnection,
+  defaultJobOptions: { ...defaultJobOptions, attempts: 1 },
+});
+
 export const queueEvents = {
   message: new QueueEvents(QUEUE_NAMES.MESSAGE, { connection: redisConnection }),
   session: new QueueEvents(QUEUE_NAMES.SESSION, { connection: redisConnection }),
@@ -73,6 +85,7 @@ export const queueEvents = {
   notification: new QueueEvents(QUEUE_NAMES.NOTIFICATION, { connection: redisConnection }),
   instanceConnect: new QueueEvents(QUEUE_NAMES.INSTANCE_CONNECT, { connection: redisConnection }),
   aiReply: new QueueEvents(QUEUE_NAMES.AI_REPLY, { connection: redisConnection }),
+  groupJoin: new QueueEvents(QUEUE_NAMES.GROUP_JOIN, { connection: redisConnection }),
 };
 
 /** Enfileira envio de mensagem com chave de idempotência (jobId = idempotencyKey). */
@@ -104,4 +117,15 @@ export async function enqueueInstanceConnect(data: InstanceConnectJobData) {
 /** Enfileira uma resposta automática por IA, com delay (ms) para simular tempo de digitação. */
 export async function enqueueAiReply(data: AiReplyJobData, delayMs = 0) {
   return aiReplyQueue.add("ai-reply", data, { delay: delayMs });
+}
+
+/**
+ * Enfileira a tentativa de UMA instância entrar num grupo via link de
+ * convite. delayMs escalona a entrada de cada instância dentro de um lote
+ * (várias instâncias entrando no mesmo grupo ao mesmo tempo é um padrão que
+ * o WhatsApp associa a bots) - jobId = groupJoinId evita duplicar a mesma
+ * tentativa.
+ */
+export async function enqueueGroupJoin(data: GroupJoinJobData, delayMs = 0) {
+  return groupJoinQueue.add("group-join", data, { delay: delayMs, jobId: data.groupJoinId });
 }
