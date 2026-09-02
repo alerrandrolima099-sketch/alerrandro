@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { MessagingProvider, SendResult, SendTextMessageParams, ConnectInstanceResult, SendGroupInviteParams } from "./MessagingProvider";
+import { MessagingProvider, SendResult, SendTextMessageParams, ConnectInstanceResult, SendGroupInviteParams, JoinGroupParams, JoinGroupResult } from "./MessagingProvider";
 import { env } from "@whatsapp-saas/config";
 
 /**
@@ -81,6 +81,16 @@ export class WhatsAppCloudProvider implements MessagingProvider {
       text: `Você foi convidado para nossa comunidade: ${params.inviteLink}`,
       idempotencyKey: `invite_${params.to}_${params.inviteLink}`,
     });
+  }
+
+  async joinGroup(_params: JoinGroupParams): Promise<JoinGroupResult> {
+    // A Cloud API oficial não tem nenhum endpoint para entrar em grupos via
+    // link de convite - isso só existe no protocolo não documentado que o
+    // WhatsApp Web (e o Baileys) usa. A tela de Grupos só oferece "Entrar
+    // com todos os números" para instâncias WHATSAPP_QR (ver
+    // groups.service.ts joinAll), então este método não deveria ser
+    // chamado na prática - existe só para cumprir a interface.
+    return { status: "FAILED", error: "Entrar em grupos por link não é suportado pela API oficial (Cloud API)." };
   }
 
   verifyWebhookSignature(rawBody: string, signatureHeader: string | undefined): boolean {
