@@ -479,8 +479,13 @@ model AutomationExecution {
 
 model Group {
   id          String   @id @default(uuid())
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // tenantId nulo = grupo do catálogo global (seção 40), cadastrado pelo
+  // admin em /admin/grupos e visível/utilizável por TODOS os tenants. Não
+  // nulo = grupo privado, criado pelo próprio tenant em "Meus Grupos"
+  // (comportamento original, inalterado). Mesmo padrão já usado em
+  // WebhookEvent/Job para registros que não pertencem a um único tenant.
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
   name        String
   description String?
   inviteLink  String
