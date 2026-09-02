@@ -1,4 +1,4 @@
-import { MessagingProvider, SendResult, SendTextMessageParams, ConnectInstanceResult, SendGroupInviteParams } from "./MessagingProvider";
+import { MessagingProvider, SendResult, SendTextMessageParams, ConnectInstanceResult, SendGroupInviteParams, JoinGroupParams, JoinGroupResult } from "./MessagingProvider";
 import { randomUUID } from "crypto";
 
 /**
@@ -30,6 +30,12 @@ export class MockProvider implements MessagingProvider {
     // eslint-disable-next-line no-console
     console.log(`[MockProvider] sendGroupInvite -> to=${params.to} link=${params.inviteLink}`);
     return { providerMessageId: `mock_invite_${randomUUID()}`, status: "SENT" };
+  }
+
+  async joinGroup(params: JoinGroupParams): Promise<JoinGroupResult> {
+    // eslint-disable-next-line no-console
+    console.log(`[MockProvider] joinGroup -> instanceId=${params.instanceId} inviteCode=${params.inviteCode}`);
+    return { status: "JOINED" };
   }
 
   verifyWebhookSignature(_rawBody: string, _signatureHeader: string | undefined): boolean {
