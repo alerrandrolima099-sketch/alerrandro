@@ -42,10 +42,14 @@ async function main() {
   // seguia vivo e que a coleta de logs da plataforma estava realmente
   // funcionando (só víamos "Starting Container" e nada mais depois disso,
   // mesmo com o processo rodando normalmente). Um log a cada 60s é barato
-  // e deixa isso visível.
+  // e deixa isso visível. "bootedAt" é capturado uma única vez aqui fora do
+  // setInterval - do contrário toda mensagem mostrava a hora atual em vez
+  // da hora real em que o processo subiu, o que não ajuda a distinguir um
+  // processo antigo ainda vivo de um que acabou de reiniciar.
+  const bootedAt = new Date().toISOString();
   setInterval(() => {
     // eslint-disable-next-line no-console
-    console.log(`[worker] heartbeat - up since ${new Date().toISOString()}`);
+    console.log(`[worker] heartbeat - up since ${bootedAt}`);
   }, 60_000).unref();
 }
 
