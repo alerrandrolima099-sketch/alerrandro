@@ -13,6 +13,9 @@ COPY apps/web ./apps/web
 
 RUN npm install
 
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 RUN npm run build --workspace=@whatsapp-saas/web
 
 WORKDIR /app/apps/web
