@@ -56,7 +56,10 @@ export function registerWarmupProcessor() {
 async function runWarmupTick() {
   const pairs = await prisma.warmupPair.findMany({
     where: { enabled: true },
-    include: { instanceA: true, instanceB: true },
+    include: {
+      instanceA: { include: { persona: true } },
+      instanceB: { include: { persona: true } },
+    },
   });
 
   const now = new Date();
@@ -99,7 +102,11 @@ async function runWarmupTick() {
         history.push({ role: "user", content: "(comece a conversa com um cumprimento casual)" });
       }
 
-      const result = await generateAiReply({ history, systemPrompt: WARMUP_SYSTEM_PROMPT(sender.aiSystemPrompt) });
+      // Perfil de Conversa (seção 38): texto livre da instância continua
+      // tendo prioridade quando preenchido; o Perfil é a alternativa
+      // reutilizável quando não há texto livre configurado.
+      const senderPrompt = sender.aiSystemPrompt ?? sender.persona?.systemPrompt ?? null;
+      const result = await generateAiReply({ history, systemPrompt: WARMUP_SYSTEM_PROMPT(senderPrompt) });
       if (!result.ok) {
         await prisma.warmupPair.update({ where: { id: pair.id }, data: { lastError: result.error } });
         continue;
