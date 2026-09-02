@@ -86,6 +86,33 @@ export class InstancesService {
     return updated;
   }
 
+  /**
+   * Liga/desliga a resposta automática por IA (ChatGPT) desta instância e/ou
+   * atualiza a persona (prompt de sistema) usada nas respostas - seção 34.
+   */
+  async updateAiSettings(
+    tenantId: string,
+    id: string,
+    params: { aiAutoReplyEnabled?: boolean; aiSystemPrompt?: string | null }
+  ) {
+    await this.getById(tenantId, id);
+    const updated = await prisma.instance.update({
+      where: { id },
+      data: {
+        ...(params.aiAutoReplyEnabled !== undefined ? { aiAutoReplyEnabled: params.aiAutoReplyEnabled } : {}),
+        ...(params.aiSystemPrompt !== undefined ? { aiSystemPrompt: params.aiSystemPrompt } : {}),
+      },
+    });
+    await writeLog({
+      tenantId,
+      action: "INSTANCE_AI_SETTINGS_UPDATED",
+      resource: "instance",
+      resourceId: id,
+      metadata: params,
+    });
+    return updated;
+  }
+
   async pause(tenantId: string, id: string) {
     await this.getById(tenantId, id);
     return prisma.instance.update({ where: { id }, data: { status: "PAUSED" } });
