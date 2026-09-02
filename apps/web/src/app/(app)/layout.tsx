@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
 
@@ -14,7 +15,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [loading, user, router]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-muted">Carregando...</div>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-muted">
+        <Loader2 size={22} className="animate-spin text-primary" />
+        <span className="text-sm">Carregando...</span>
+      </div>
+    );
   }
   if (!user) return null;
 
