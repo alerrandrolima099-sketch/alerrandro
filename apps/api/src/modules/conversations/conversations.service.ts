@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma";
 import { AppError } from "../../middleware/error.middleware";
 import { enqueueSendMessage } from "../../queues/queueService";
 import { writeLog } from "../../lib/logger";
+import { emitToTenant } from "../../websocket/gateway";
 import { randomUUID } from "crypto";
 
 export class ConversationsService {
@@ -49,6 +50,11 @@ export class ConversationsService {
       content,
       idempotencyKey: randomUUID(),
     });
+
+    // Tempo real (seção 36): envio manual (atendimento humano) também conta
+    // como novidade na conversa para quem estiver com a tela aberta em
+    // outra aba/sessão.
+    emitToTenant(tenantId, "conversation:message", { conversationId });
 
     return message;
   }
