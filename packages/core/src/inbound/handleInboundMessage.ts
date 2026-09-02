@@ -2,6 +2,7 @@ import { prisma } from "@whatsapp-saas/database";
 import { env } from "@whatsapp-saas/config";
 import { automationEngine } from "../automation/automationEngine";
 import { enqueueAiReply } from "../queues/queueService";
+import { emitToTenant } from "../realtime/emitter";
 
 /**
  * Ponto único de entrada para QUALQUER mensagem recebida de um contato,
@@ -86,6 +87,10 @@ export async function handleInboundMessage(params: {
   });
 
   await prisma.conversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date() } });
+
+  // Tempo real (seção 36): avisa o front-end (tela de Conversas) que essa
+  // conversa tem novidade, pra ele atualizar sem precisar de F5/polling.
+  emitToTenant(instance.tenantId, "conversation:message", { conversationId: conversation.id });
 
   // Fluxo de automação (seção 14) tem prioridade sobre a IA genérica -
   // evita as duas coisas responderem ao mesmo tempo.
