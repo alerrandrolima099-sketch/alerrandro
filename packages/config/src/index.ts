@@ -20,9 +20,17 @@ export const env = {
   JWT_ACCESS_EXPIRES_IN: process.env.JWT_ACCESS_EXPIRES_IN ?? "15m",
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN ?? "7d",
 
-  MESSAGING_PROVIDER: process.env.MESSAGING_PROVIDER ?? "MOCK", // MOCK | WHATSAPP_CLOUD_API
+  MESSAGING_PROVIDER: process.env.MESSAGING_PROVIDER ?? "MOCK", // MOCK | WHATSAPP_CLOUD_API | WHATSAPP_QR
   MESSAGING_API_URL: process.env.MESSAGING_API_URL ?? "",
   MESSAGING_API_TOKEN: process.env.MESSAGING_API_TOKEN ?? "",
+
+  // Diretório onde as credenciais de sessão do WHATSAPP_QR (Baileys) ficam
+  // persistidas. Em produção, defina BAILEYS_SESSIONS_DIR apontando para o
+  // caminho de montagem de um Volume do Railway anexado ao serviço worker
+  // (ex: /data/baileys-sessions) - sem isso, a sessão se perde a cada
+  // deploy/restart e o usuário precisa escanear o QR Code de novo. O
+  // padrão abaixo (/tmp) só é seguro para desenvolvimento local.
+  BAILEYS_SESSIONS_DIR: process.env.BAILEYS_SESSIONS_DIR ?? "/tmp/baileys-sessions",
 
   WEBHOOK_SECRET: process.env.WEBHOOK_SECRET ?? "dev-only-webhook-secret",
   ENCRYPTION_KEY: required("ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef"), // 32 bytes p/ AES-256
