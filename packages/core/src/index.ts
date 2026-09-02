@@ -6,3 +6,5 @@ export * from "./messaging";
 export * from "./senderPool/senderPool.service";
 export * from "./automation/automationEngine";
 export * from "./queues/queueService";
+export * from "./ai/openaiClient";
+export * from "./inbound/handleInboundMessage";
