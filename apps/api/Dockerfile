@@ -3,7 +3,14 @@ FROM node:20-alpine
 # Diretório de trabalho = raiz do monorepo dentro do container.
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+# openssl: necessário para o Prisma engine funcionar em Alpine (musl), sem
+# isso a schema/query engine falha ao iniciar ("Could not parse schema
+# engine response" / "Please manually install OpenSSL").
+# git: o pacote @whiskeysockets/baileys (usado por @whatsapp-saas/core para
+# a conexão via QR Code) depende de um pacote (libsignal) publicado direto
+# no GitHub, não no npm - sem o binário "git" o "npm install" falha com
+# "spawn git ENOENT".
+RUN apk add --no-cache openssl git
 
 # Copiamos a raiz + TODOS os packages internos + a própria API.
 # IMPORTANTE: outras apps (worker, web) não são necessárias para esta imagem,
