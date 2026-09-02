@@ -59,6 +59,10 @@ export class BaileysProvider implements MessagingProvider {
   private sockets = new Map<string, WASocket>();
   // Evita abrir duas conexões simultâneas para a mesma instância.
   private connecting = new Map<string, Promise<ConnectInstanceResult>>();
+  // Conta reconexões automáticas seguidas (código 515) por instância, só
+  // para evitar um loop infinito caso algo fique preso nesse estado -
+  // reseta assim que a conexão realmente abre.
+  private restartAttempts = new Map<string, number>();
 
   private sessionDir(instanceId: string): string {
     const dir = path.join(env.BAILEYS_SESSIONS_DIR, instanceId);
@@ -121,6 +125,7 @@ export class BaileysProvider implements MessagingProvider {
 
         if (connection === "open") {
           this.sockets.set(instanceId, sock);
+          this.restartAttempts.delete(instanceId);
           const phoneNumber = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
           await prisma.instance.update({
             where: { id: instanceId },
@@ -137,6 +142,26 @@ export class BaileysProvider implements MessagingProvider {
         if (connection === "close") {
           this.sockets.delete(instanceId);
           const statusCode = (lastDisconnect?.error as Boom | undefined)?.output?.statusCode;
+
+          // 515 (restartRequired): o Baileys FECHA a conexão de propósito
+          // logo depois que o celular confirma o pareamento (escaneou o QR)
+          // e espera que a gente abra um socket novo imediatamente usando as
+          // credenciais que acabaram de ser salvas - isso é o fluxo normal,
+          // não uma falha. Sem isso o usuário via "erro" mesmo escaneando
+          // certinho.
+          if (statusCode === DisconnectReason.restartRequired) {
+            const attempts = (this.restartAttempts.get(instanceId) ?? 0) + 1;
+            this.restartAttempts.set(instanceId, attempts);
+            if (attempts <= 5) {
+              this.startSocket(instanceId).catch(() => {
+                /* erros da nova tentativa já são gravados no banco */
+              });
+              return;
+            }
+            // Muitas tentativas seguidas sem sucesso - desiste e reporta erro
+            // em vez de ficar reconectando pra sempre.
+          }
+
           const loggedOut = statusCode === DisconnectReason.loggedOut;
 
           if (loggedOut) {
