@@ -65,6 +65,9 @@ export type NotificationJobData = {
 
 export type InstanceConnectJobData = {
   instanceId: string;
+  // Quando presente, conecta pedindo um código de pareamento (letras+números)
+  // pra esse número de telefone em vez de gerar QR Code - ver BaileysProvider.
+  phoneNumber?: string;
 };
 
 export type AiReplyJobData = {
