@@ -267,6 +267,11 @@ model Instance {
   // informativo, não afeta nada da conexão/mensageria - só ajuda a
   // organizar quando você tem vários números em vários celulares.
   deviceLabel    String?
+  // Apelido livre pra identificar qual WhatsApp/clone esse número usa no
+  // aparelho (seção 43) - ex: "whatsapp-2", quando a pessoa usa apps de
+  // clonagem/espaço paralelo pra ter vários WhatsApp no mesmo celular.
+  // Puramente informativo, igual o deviceLabel acima.
+  whatsappLabel  String?
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
