@@ -140,6 +140,26 @@ export class InstancesService {
     return prisma.instance.update({ where: { id }, data: { status: "PAUSED" } });
   }
 
+  // Apelido livre do aparelho físico onde esse número está conectado (seção
+  // 43) - ex: "iPhone 17 Pro Max". Puramente informativo/organizacional,
+  // não afeta a conexão real com o WhatsApp.
+  async updateDeviceLabel(tenantId: string, id: string, deviceLabel: string | null) {
+    await this.getById(tenantId, id);
+    const trimmed = deviceLabel?.trim();
+    const updated = await prisma.instance.update({
+      where: { id },
+      data: { deviceLabel: trimmed ? trimmed : null },
+    });
+    await writeLog({
+      tenantId,
+      action: "INSTANCE_DEVICE_LABEL_UPDATED",
+      resource: "instance",
+      resourceId: id,
+      metadata: { deviceLabel: trimmed ?? null },
+    });
+    return updated;
+  }
+
   async remove(tenantId: string, id: string) {
     await this.getById(tenantId, id);
     await prisma.instance.delete({ where: { id } });
