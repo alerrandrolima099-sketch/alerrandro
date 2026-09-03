@@ -49,16 +49,82 @@ export class GroupsService {
       orderBy: { createdAt: "desc" },
     });
 
+    // Estatísticas do novo card compacto (seção 41): eligibleCount é o
+    // mesmo valor para todo grupo deste tenant (é o "pool" de instâncias
+    // que PODEM entrar agora - WHATSAPP_QR + CONNECTED), então só precisa
+    // ser calculado uma vez. joinedCount é por grupo - quantas dessas
+    // mesmas instâncias elegíveis já têm uma entrada bem-sucedida
+    // (GroupJoin.status=JOINED) NESTE grupo especificamente. Tudo em lote
+    // (2 queries no total, nunca uma por grupo) para não virar N+1 numa
+    // conta com muitos grupos.
+    const eligibleInstances = await prisma.instance.findMany({
+      where: { tenantId, status: "CONNECTED", provider: "WHATSAPP_QR" },
+      select: { id: true },
+    });
+    const eligibleIds = eligibleInstances.map((i) => i.id);
+    const eligibleCount = eligibleIds.length;
+
+    const joinedRows =
+      eligibleIds.length > 0 && groups.length > 0
+        ? await prisma.groupJoin.findMany({
+            where: {
+              tenantId,
+              groupId: { in: groups.map((g) => g.id) },
+              instanceId: { in: eligibleIds },
+              status: "JOINED",
+            },
+            select: { groupId: true, instanceId: true },
+            distinct: ["groupId", "instanceId"],
+          })
+        : [];
+
+    const joinedByGroup = new Map<string, Set<string>>();
+    for (const row of joinedRows) {
+      if (!joinedByGroup.has(row.groupId)) joinedByGroup.set(row.groupId, new Set());
+      joinedByGroup.get(row.groupId)!.add(row.instanceId);
+    }
+
     // Marca cada grupo como global (catálogo do admin) ou privado deste
     // tenant, e traz o catálogo global pro topo da lista - Array.sort é
     // estável, então a ordem por data dentro de cada grupo é preservada.
     return groups
-      .map((g) => ({ ...g, isGlobal: g.tenantId === null }))
+      .map((g) => {
+        const joinedCount = joinedByGroup.get(g.id)?.size ?? 0;
+        return {
+          ...g,
+          isGlobal: g.tenantId === null,
+          stats: { eligibleCount, joinedCount, pendingCount: Math.max(0, eligibleCount - joinedCount) },
+        };
+      })
       .sort((a, b) => Number(b.isGlobal) - Number(a.isGlobal));
   }
 
   async create(tenantId: string, params: { name: string; description?: string; inviteLink: string; category?: string }) {
     return prisma.group.create({ data: { tenantId, ...params } });
+  }
+
+  /** Edita um grupo PRIVADO deste tenant (seção 41 - menu "⋯" > Editar
+   * grupo). `findFirst({ id, tenantId })` já exclui naturalmente tanto
+   * grupos de outros tenants quanto grupos do catálogo global (tenantId
+   * nulo nunca bate com uma string real) - por isso o catálogo continua
+   * editável só pelo admin, via adminUpdate. */
+  async update(
+    tenantId: string,
+    id: string,
+    params: { name?: string; description?: string; inviteLink?: string; category?: string }
+  ) {
+    const group = await prisma.group.findFirst({ where: { id, tenantId } });
+    if (!group) throw new AppError(404, "Grupo não encontrado");
+    return prisma.group.update({ where: { id }, data: params });
+  }
+
+  /** "Exclui" um grupo PRIVADO deste tenant - na prática oculta (isActive
+   * false), igual ao padrão já usado no catálogo global, para preservar o
+   * histórico de convites/entradas em vez de apagar tudo em cascata. */
+  async remove(tenantId: string, id: string) {
+    const group = await prisma.group.findFirst({ where: { id, tenantId } });
+    if (!group) throw new AppError(404, "Grupo não encontrado");
+    await prisma.group.update({ where: { id }, data: { isActive: false } });
   }
 
   async offerInvite(tenantId: string, contactId: string, groupId: string) {
@@ -102,8 +168,17 @@ export class GroupsService {
    * e faz polling em listJoins() até todas saírem de QUEUED/JOINING.
    * Funciona tanto para grupos privados do tenant quanto para grupos do
    * catálogo global (seção 40).
+   *
+   * `instanceIds` (seção 41 - modal "Entrar no grupo"): quando informado,
+   * restringe a entrada só a essas instâncias - mas o filtro
+   * tenantId+CONNECTED+WHATSAPP_QR abaixo é sempre reaplicado no backend,
+   * então uma instância que o front mostrou como elegível na hora da
+   * seleção mas desconectou antes da confirmação (ou que nem pertence a
+   * este tenant) nunca entra por engano só porque o ID veio no corpo da
+   * requisição. Quando omitido/vazio, mantém o comportamento original:
+   * entra com TODAS as instâncias elegíveis do tenant.
    */
-  async joinAll(tenantId: string, groupId: string) {
+  async joinAll(tenantId: string, groupId: string, instanceIds?: string[]) {
     const group = await prisma.group.findFirst({ where: { id: groupId, OR: [{ tenantId }, { tenantId: null }] } });
     if (!group) throw new AppError(404, "Grupo não encontrado");
 
@@ -113,10 +188,15 @@ export class GroupsService {
     }
 
     const instances = await prisma.instance.findMany({
-      where: { tenantId, status: "CONNECTED", provider: "WHATSAPP_QR" },
+      where: {
+        tenantId,
+        status: "CONNECTED",
+        provider: "WHATSAPP_QR",
+        ...(instanceIds && instanceIds.length > 0 ? { id: { in: instanceIds } } : {}),
+      },
     });
     if (instances.length === 0) {
-      throw new AppError(409, "Nenhum número conectado via QR Code encontrado para entrar no grupo");
+      throw new AppError(409, "Nenhum número elegível encontrado para entrar no grupo");
     }
 
     const joins = [];
