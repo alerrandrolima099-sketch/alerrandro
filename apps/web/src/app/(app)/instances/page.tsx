@@ -211,11 +211,15 @@ export default function InstancesPage() {
 
   async function createInstance(e: React.FormEvent) {
     e.preventDefault();
-    await api("/instances", { method: "POST", body: { name, provider } });
-    setName("");
-    setProvider("MOCK");
-    setShowCreate(false);
-    await load();
+    try {
+      await api("/instances", { method: "POST", body: { name, provider } });
+      setName("");
+      setProvider("MOCK");
+      setShowCreate(false);
+      await load();
+    } catch (err: any) {
+      alert(err?.message ?? "Não foi possível criar o número. Tente novamente.");
+    }
   }
 
   async function connect(id: string) {
@@ -223,6 +227,8 @@ export default function InstancesPage() {
     try {
       await api(`/instances/${id}/connect`, { method: "POST" });
       await load();
+    } catch (err: any) {
+      alert(err?.message ?? "Não foi possível conectar este número. Tente novamente.");
     } finally {
       setBusy(null);
     }
@@ -233,6 +239,8 @@ export default function InstancesPage() {
     try {
       await api(`/instances/${id}/disconnect`, { method: "POST" });
       await load();
+    } catch (err: any) {
+      alert(err?.message ?? "Não foi possível desconectar este número. Tente novamente.");
     } finally {
       setBusy(null);
     }
@@ -247,15 +255,31 @@ export default function InstancesPage() {
     try {
       await api(`/instances/${id}/pause`, { method: "POST" });
       await load();
+    } catch (err: any) {
+      alert(err?.message ?? "Não foi possível pausar este número. Tente novamente.");
     } finally {
       setBusy(null);
     }
   }
 
+  // Antes desta correção, um erro aqui (ex: instância já removida em outra
+  // aba, sessão expirada, falha de rede) ficava sem NENHUM feedback: a
+  // Promise rejeitava sem try/catch, a lista não recarregava e, aos olhos de
+  // quem clicou, "o botão Excluir não fazia nada". Agora o motivo real do
+  // erro aparece num alerta, igual às outras ações (Conectar/Pausar/
+  // Desconectar) - e o botão fica com feedback de "processando" (setBusy)
+  // enquanto a exclusão está em andamento.
   async function remove(id: string) {
     if (!confirm("Excluir esta instância?")) return;
-    await api(`/instances/${id}`, { method: "DELETE" });
-    await load();
+    setBusy(id);
+    try {
+      await api(`/instances/${id}`, { method: "DELETE" });
+      await load();
+    } catch (err: any) {
+      alert(err?.message ?? "Não foi possível excluir este número. Tente novamente.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   function updateDraft(id: string, patch: Partial<AiDraft>) {
@@ -282,6 +306,8 @@ export default function InstancesPage() {
         },
       });
       await load();
+    } catch (err: any) {
+      alert(err?.message ?? "Não foi possível salvar as configurações de IA. Tente novamente.");
     } finally {
       setBusy(null);
     }
