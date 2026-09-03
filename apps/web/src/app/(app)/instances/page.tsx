@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle,
+  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
@@ -24,6 +24,10 @@ type Instance = {
   profilePicUrl: string | null;
   lastError: string | null;
   lastActivityAt: string | null;
+  // Apelido livre do aparelho físico onde esse número está conectado (seção
+  // 43) - ex: "iPhone 17 Pro Max". Puramente organizacional, você que
+  // digita e salva; nulo até a primeira vez que alguém preenche.
+  deviceLabel: string | null;
   createdAt: string;
   aiAutoReplyEnabled: boolean;
   aiSystemPrompt: string | null;
@@ -154,6 +158,11 @@ export default function InstancesPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [aiDraft, setAiDraft] = useState<Record<string, AiDraft>>({});
   const [aiOpen, setAiOpen] = useState<Record<string, boolean>>({});
+  // Rascunho do campo "Aparelho" (seção 43) por instância - só existe uma
+  // entrada aqui a partir do momento em que a pessoa digita algo; até lá o
+  // campo mostra inst.deviceLabel direto, então o polling de QR Code (que
+  // recarrega a lista a cada 3s) nunca apaga o que ainda não foi salvo.
+  const [deviceLabelDraft, setDeviceLabelDraft] = useState<Record<string, string>>({});
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   // Mensagem de erro de uma ação (Conectar/Pausar/Desconectar/Excluir/Salvar
   // IA) que falhou - mostrada como uma faixa no topo da página. Antes disso
@@ -333,6 +342,31 @@ export default function InstancesPage() {
       ...prev,
       [id]: { ...(prev[id] ?? { enabled: false, prompt: "", personaId: null }), ...patch },
     }));
+  }
+
+  // Apelido do aparelho (seção 43) - salva sozinho ao sair do campo (blur)
+  // ou ao apertar Enter, sem precisar de um botão "Salvar" separado. Só
+  // chama a API se o texto realmente mudou, pra não gerar uma chamada à
+  // toa toda vez que o campo perde o foco sem edição nenhuma.
+  async function saveDeviceLabel(id: string) {
+    const draft = deviceLabelDraft[id];
+    if (draft === undefined) return;
+    const inst = instances.find((i) => i.id === id);
+    const current = inst?.deviceLabel ?? "";
+    const trimmed = draft.trim();
+    if (trimmed === current) return;
+    setActionError(null);
+    try {
+      await api(`/instances/${id}/device-label`, { method: "PATCH", body: { deviceLabel: trimmed || null } });
+      await load();
+      setDeviceLabelDraft((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err: any) {
+      setActionError(err?.message ?? "Não foi possível salvar o aparelho. Tente novamente.");
+    }
   }
 
   // Resposta automática por IA (ChatGPT) nas Conversas - seção 34. Envia com
@@ -525,6 +559,24 @@ export default function InstancesPage() {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Aparelho (seção 43): campo livre pra anotar em qual
+                      celular físico esse WhatsApp está conectado - ex:
+                      "iPhone 17 Pro Max". Puramente organizacional, salva
+                      sozinho ao sair do campo ou apertar Enter. */}
+                  <div className="mb-2.5 flex items-center gap-1.5 bg-background/60 border border-border rounded-lg px-2.5 py-1.5 focus-within:border-primary transition-colors">
+                    <Smartphone size={12} className="text-muted shrink-0" />
+                    <input
+                      value={deviceLabelDraft[inst.id] ?? inst.deviceLabel ?? ""}
+                      onChange={(e) => setDeviceLabelDraft((prev) => ({ ...prev, [inst.id]: e.target.value }))}
+                      onBlur={() => saveDeviceLabel(inst.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      placeholder="Aparelho (ex: iPhone 17 Pro Max)"
+                      className="flex-1 min-w-0 bg-transparent text-xs outline-none placeholder:text-muted/60"
+                    />
                   </div>
 
                   <div className="mb-2.5">
