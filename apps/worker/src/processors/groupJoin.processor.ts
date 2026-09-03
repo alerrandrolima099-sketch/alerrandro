@@ -21,10 +21,30 @@ export function registerGroupJoinProcessor() {
     async (job: Job<GroupJoinJobData>) => {
       const { groupJoinId } = job.data;
 
-      const groupJoin = await prisma.groupJoin.findUnique({
-        where: { id: groupJoinId },
-        include: { group: true, instance: true },
-      });
+      // Busca o registro FORA do try/catch de execução (abaixo) de propósito
+      // original, mas isso tinha um efeito colateral ruim: qualquer erro
+      // aqui (ex: schema desatualizado num deploy antigo do worker, soluço
+      // de conexão com o banco) derrubava o job sem nunca marcar a linha
+      // como FAILED - ela ficava presa em "Na fila" pra sempre, sem
+      // nenhuma pista pro usuário. Agora um erro na busca também marca a
+      // tentativa como falha, com a mensagem real do erro.
+      let groupJoin;
+      try {
+        groupJoin = await prisma.groupJoin.findUnique({
+          where: { id: groupJoinId },
+          include: { group: true, instance: true },
+        });
+      } catch (err: any) {
+        await prisma.groupJoin
+          .update({
+            where: { id: groupJoinId },
+            data: { status: "FAILED", error: err?.message ?? "Erro ao carregar a tentativa de entrada no grupo." },
+          })
+          .catch(() => {
+            /* melhor esforço - não deixa isso derrubar o processo */
+          });
+        return { groupJoinId, status: "FAILED", error: err?.message };
+      }
       if (!groupJoin) return { skipped: true, reason: "group_join_not_found" };
 
       try {
