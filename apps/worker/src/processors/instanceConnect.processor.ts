@@ -32,12 +32,14 @@ export function registerInstanceConnectProcessor() {
   const worker = new Worker<InstanceConnectJobData>(
     QUEUE_NAMES.INSTANCE_CONNECT,
     async (job: Job<InstanceConnectJobData>) => {
-      const { instanceId } = job.data;
+      const { instanceId, phoneNumber } = job.data;
       // eslint-disable-next-line no-console
-      console.log(`[instanceConnect.processor] job ${job.id} iniciado para instância ${instanceId}`);
+      console.log(
+        `[instanceConnect.processor] job ${job.id} iniciado para instância ${instanceId}${phoneNumber ? " (código de pareamento)" : ""}`
+      );
 
       const provider = getBaileysProvider();
-      const result = await provider.connectInstance(instanceId, { fresh: true });
+      const result = await provider.connectInstance(instanceId, { fresh: true, phoneNumber });
 
       // eslint-disable-next-line no-console
       console.log(`[instanceConnect.processor] job ${job.id} concluído para instância ${instanceId}: ${result.status}`);
