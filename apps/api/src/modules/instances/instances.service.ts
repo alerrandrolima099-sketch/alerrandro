@@ -53,20 +53,33 @@ export class InstancesService {
     return instance;
   }
 
-  async connect(tenantId: string, id: string) {
+  // phoneNumber (opcional): quando informado, pede um código de pareamento
+  // (letras+números) pra esse número em vez de gerar QR Code - segunda forma
+  // de conectar uma instância WHATSAPP_QR, oferecida pelo próprio WhatsApp
+  // (Aparelhos conectados → Conectar com número de telefone). Ignorado por
+  // qualquer outro provedor.
+  async connect(tenantId: string, id: string, phoneNumber?: string) {
     const instance = await this.getById(tenantId, id);
 
-    // WHATSAPP_QR precisa gerar e aguardar a leitura de um QR Code, o que só
-    // acontece de fato dentro do processo worker (é lá que o socket do
-    // Baileys vive). A API apenas enfileira e marca como CONNECTING - o
-    // front-end faz polling em GET /instances/:id até o qrCode aparecer.
+    // WHATSAPP_QR precisa gerar e aguardar a leitura do QR Code (ou a
+    // digitação do código de pareamento), o que só acontece de fato dentro
+    // do processo worker (é lá que o socket do Baileys vive). A API apenas
+    // enfileira e marca como CONNECTING - o front-end faz polling em GET
+    // /instances/:id até o qrCode/pairingCode aparecer.
     if (instance.provider === "WHATSAPP_QR") {
+      const trimmedPhone = phoneNumber?.trim() || undefined;
       const updated = await prisma.instance.update({
         where: { id: instance.id },
         data: { status: "CONNECTING", lastError: null, lastActivityAt: new Date() },
       });
-      await enqueueInstanceConnect({ instanceId: instance.id });
-      await writeLog({ tenantId, action: "INSTANCE_CONNECT_ATTEMPT", resource: "instance", resourceId: instance.id, metadata: { status: "CONNECTING", async: true } });
+      await enqueueInstanceConnect({ instanceId: instance.id, phoneNumber: trimmedPhone });
+      await writeLog({
+        tenantId,
+        action: "INSTANCE_CONNECT_ATTEMPT",
+        resource: "instance",
+        resourceId: instance.id,
+        metadata: { status: "CONNECTING", async: true, method: trimmedPhone ? "pairing_code" : "qr_code" },
+      });
       return updated;
     }
 
