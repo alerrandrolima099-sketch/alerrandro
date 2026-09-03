@@ -246,6 +246,13 @@ model Instance {
   // QR Code atual (data URL base64) para pareamento via WHATSAPP_QR - efêmero,
   // limpo assim que a instância conecta ou o código expira.
   qrCode         String?               @db.Text
+  // Código de pareamento (8 caracteres, letras+números) para conectar via
+  // número de telefone em vez de escanear o QR Code - alternativa oferecida
+  // pelo próprio WhatsApp (Aparelhos conectados → Conectar com número de
+  // telefone). Só é gerado quando o usuário escolhe esse método e informa o
+  // número na tela de Conectar; mesmo ciclo de vida efêmero do qrCode acima
+  // (nunca os dois preenchidos ao mesmo tempo - ver BaileysProvider).
+  pairingCode    String?
   // URL da foto de perfil do WhatsApp desta instância (buscada do próprio
   // WhatsApp quando conecta via WHATSAPP_QR). Nula para provedores onde não
   // buscamos isso (MOCK, WHATSAPP_CLOUD_API) ou quando o número não tem foto.
