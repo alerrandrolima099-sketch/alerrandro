@@ -163,11 +163,44 @@ export default function InstancesPage() {
   // sempre aparece porque é HTML normal da própria página.
   const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Referência do bloco "⋯ + menu" da instância que está aberta agora (só
+  // uma por vez, já que openMenu guarda um único id). Usada para fechar o
+  // menu ao clicar fora dele - ver useEffect abaixo.
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Total de números conectados e ativos agora - pedido explícito do
   // usuário no topo da página, além do card "Números ativos" que já existe
   // no Dashboard. Derivado da própria lista já carregada, sem chamada nova.
   const activeCount = instances.filter((i) => i.active).length;
+
+  // Fecha o menu "⋯" ao clicar fora dele.
+  //
+  // ANTES: isso era feito com uma <div className="fixed inset-0 z-10" .../>
+  // cobrindo a tela inteira por trás do menu. Só que qualquer card com
+  // "hover:-translate-y-0.5" (efeito de "levantar" ao passar o mouse) cria,
+  // enquanto o mouse/dedo está sobre ele, um novo contexto de empilhamento
+  // (stacking context) por causa do transform - isso prendia o menu (z-20)
+  // DENTRO desse contexto local, que ficava por baixo da faixa cobrindo a
+  // tela (z-10, fora de qualquer card). Resultado: um clique/toque real em
+  // "Excluir", "Pausar" etc. era engolido pela faixa invisível por trás -
+  // o botão "não fazia nada" porque o clique nunca chegava nele de fato.
+  // Confirmado isso na prática: com o transform do hover ativo, o ponto
+  // exato do botão "Excluir" resolvia para a faixa cobrindo a tela, não
+  // para o botão.
+  //
+  // AGORA: sem faixa nenhuma cobrindo a tela - fecha via um listener no
+  // documento que checa se o clique caiu fora do bloco do menu (menuRef).
+  // Não existe mais nada que possa ficar "por cima" do menu por acidente.
+  useEffect(() => {
+    if (!openMenu) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenu]);
 
   async function load() {
     const [data, personasData] = await Promise.all([
@@ -436,7 +469,7 @@ export default function InstancesPage() {
                       <h3 className="text-sm font-medium truncate">{inst.name}</h3>
                       <p className="text-xs text-muted truncate">{inst.phoneNumber ?? "—"}</p>
                     </div>
-                    <div className="relative shrink-0">
+                    <div className="relative shrink-0" ref={openMenu === inst.id ? menuRef : undefined}>
                       <button
                         onClick={() => setOpenMenu(openMenu === inst.id ? null : inst.id)}
                         className="text-muted hover:text-white p-1 rounded-lg hover:bg-surfaceHover transition-colors"
@@ -656,9 +689,6 @@ export default function InstancesPage() {
               );
             })}
           </div>
-
-          {/* Fecha o menu "⋯" ao clicar fora dele. */}
-          {openMenu && <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />}
         </>
       )}
     </div>
