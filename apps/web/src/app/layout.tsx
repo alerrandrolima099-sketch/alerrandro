@@ -11,7 +11,7 @@ import { AuthProvider } from "@/lib/auth";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "WhatsApp SaaS - Gerenciamento de Instâncias e Automações",
+  title: "LowZap - Gerenciamento de Instâncias e Automações",
   description: "Plataforma de gerenciamento de instâncias de WhatsApp Business e automações de atendimento",
 };
 
