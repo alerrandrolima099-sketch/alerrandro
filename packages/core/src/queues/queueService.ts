@@ -109,7 +109,9 @@ export async function enqueueNotification(data: NotificationJobData) {
   return notificationQueue.add("send-notification", data);
 }
 
-/** Enfileira (re)conexão de uma instância WHATSAPP_QR - idempotente por instância. */
+/** Enfileira (re)conexão de uma instância WHATSAPP_QR - idempotente por instância.
+ * Se data.phoneNumber vier preenchido, conecta pedindo um código de
+ * pareamento pra esse número em vez de gerar QR Code. */
 export async function enqueueInstanceConnect(data: InstanceConnectJobData) {
   return instanceConnectQueue.add("connect-instance", data, { jobId: data.instanceId });
 }
