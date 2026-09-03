@@ -79,6 +79,19 @@ instancesRouter.post("/:id/pause", async (req, res, next) => {
   }
 });
 
+const updateDeviceLabelSchema = z.object({
+  deviceLabel: z.string().max(120).nullable().optional(),
+});
+
+instancesRouter.patch("/:id/device-label", async (req, res, next) => {
+  try {
+    const body = updateDeviceLabelSchema.parse(req.body);
+    res.json(await instancesService.updateDeviceLabel(req.tenantId!, req.params.id, body.deviceLabel ?? null));
+  } catch (err) {
+    next(err);
+  }
+});
+
 instancesRouter.delete("/:id", async (req, res, next) => {
   try {
     await instancesService.remove(req.tenantId!, req.params.id);
