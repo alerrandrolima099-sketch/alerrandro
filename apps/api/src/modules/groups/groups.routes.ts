@@ -25,6 +25,34 @@ groupsRouter.post("/", async (req, res, next) => {
   }
 });
 
+const updateSchema = z.object({
+  name: z.string().min(2).optional(),
+  description: z.string().optional(),
+  inviteLink: z.string().url().optional(),
+  category: z.string().optional(),
+});
+
+// Editar/excluir (seção 41 - menu "⋯") só é permitido para grupos PRIVADOS
+// deste tenant - groupsService.update/remove já garante isso internamente
+// (grupos do catálogo global e de outros tenants respondem 404 aqui).
+groupsRouter.patch("/:id", async (req, res, next) => {
+  try {
+    const body = updateSchema.parse(req.body);
+    res.json(await groupsService.update(req.tenantId!, req.params.id, body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+groupsRouter.delete("/:id", async (req, res, next) => {
+  try {
+    await groupsService.remove(req.tenantId!, req.params.id);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
 groupsRouter.post("/:id/offer", async (req, res, next) => {
   try {
     const { contactId } = z.object({ contactId: z.string().uuid() }).parse(req.body);
@@ -45,9 +73,15 @@ groupsRouter.post("/:id/decision", async (req, res, next) => {
   }
 });
 
+const joinAllSchema = z.object({ instanceIds: z.array(z.string().uuid()).optional() });
+
 groupsRouter.post("/:id/join-all", async (req, res, next) => {
   try {
-    res.status(201).json(await groupsService.joinAll(req.tenantId!, req.params.id));
+    // req.body pode vir vazio ({} ou undefined) quando o front pede "entrar
+    // com todas" - z.object({...}).optional() em cada campo já cobre isso,
+    // só precisamos aceitar um corpo ausente sem quebrar o parse.
+    const { instanceIds } = joinAllSchema.parse(req.body ?? {});
+    res.status(201).json(await groupsService.joinAll(req.tenantId!, req.params.id, instanceIds));
   } catch (err) {
     next(err);
   }
