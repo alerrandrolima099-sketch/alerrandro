@@ -38,9 +38,18 @@ instancesRouter.post("/", async (req, res, next) => {
   }
 });
 
+// phoneNumber (opcional, seção 44): quando informado, conecta pedindo um
+// código de pareamento (letras+números) pra esse número em vez de gerar QR
+// Code. Só faz sentido pra instâncias WHATSAPP_QR - ignorado pelos demais
+// provedores (o service nem chega a usar o valor nesse caso).
+const connectSchema = z.object({
+  phoneNumber: z.string().min(8).max(20).optional(),
+});
+
 instancesRouter.post("/:id/connect", async (req, res, next) => {
   try {
-    res.json(await instancesService.connect(req.tenantId!, req.params.id));
+    const body = connectSchema.parse(req.body ?? {});
+    res.json(await instancesService.connect(req.tenantId!, req.params.id, body.phoneNumber));
   } catch (err) {
     next(err);
   }
