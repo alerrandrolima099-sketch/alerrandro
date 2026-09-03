@@ -7,6 +7,8 @@ import {
   useMultiFileAuthState,
   DisconnectReason,
   Browsers,
+  fetchLatestWaWebVersion,
+  fetchLatestBaileysVersion,
   type WASocket,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
@@ -74,6 +76,60 @@ export class BaileysProvider implements MessagingProvider {
     return dir;
   }
 
+  /**
+   * SEGUNDA CAUSA (encontrada depois do fix do fingerprint de navegador, ao
+   * ver o mesmo tipo de queda de conexão acontecer mesmo em números
+   * diferentes, sempre muito rápido demais pra ser o usuário digitando
+   * errado): a biblioteca Baileys vem com uma versão "padrão" do protocolo
+   * do WhatsApp Web embutida no pacote (atualizada só quando os
+   * mantenedores da biblioteca lançam uma nova versão dela) - e quando essa
+   * versão embutida fica desatualizada em relação à que o WhatsApp
+   * realmente aceita no momento, o WhatsApp passa a recusar qualquer
+   * PAREAMENTO NOVO (tanto por QR Code quanto por código) quase
+   * instantaneamente, mesmo com tudo mais certo - só sessões JÁ pareadas
+   * (que não passam pelo pareamento de novo) continuam funcionando. Foi
+   * exatamente esse comportamento visto nos logs de produção depois do fix
+   * do fingerprint: código gerado, conexão derrubada 1-2s depois, em
+   * números diferentes.
+   *
+   * A correção (confirmada em relatos recentes de outros usuários da
+   * biblioteca com o mesmo sintoma) é buscar a versão realmente atual
+   * direto do próprio WhatsApp Web (fetchLatestWaWebVersion) em vez de usar
+   * a versão embutida - com fallback em cadeia pra nunca travar um
+   * pareamento por causa de uma falha nessa busca (a internet pode estar
+   * instável, ou o WhatsApp pode recusar essa checagem esporadicamente):
+   * 1) tenta a versão mais atual direto do WhatsApp; 2) se falhar, tenta a
+   * versão mais recente conhecida pelos mantenedores da Baileys; 3) se as
+   * duas falharem, usa a versão embutida padrão mesmo (comportamento atual,
+   * sem piorar nada).
+   *
+   * Só é chamada em pareamentos NOVOS (fresh=true) - sessões sendo
+   * retomadas (fresh=false) não pareiam de novo, então não são afetadas por
+   * esse problema, e não vale a pena arriscar uma chamada de rede extra
+   * (nem sempre 100% confiável) numa reconexão que já funciona hoje.
+   */
+  private async resolveWaVersion(instanceId: string): Promise<[number, number, number] | undefined> {
+    try {
+      const { version } = await fetchLatestWaWebVersion({});
+      // eslint-disable-next-line no-console
+      console.log(`[BaileysProvider] versão do WhatsApp Web obtida (fetchLatestWaWebVersion) para ${instanceId}: ${version.join(".")}`);
+      return version as [number, number, number];
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.log(`[BaileysProvider] fetchLatestWaWebVersion falhou (instância ${instanceId}): ${err?.message} - tentando fetchLatestBaileysVersion`);
+      try {
+        const { version } = await fetchLatestBaileysVersion();
+        // eslint-disable-next-line no-console
+        console.log(`[BaileysProvider] versão obtida via fetchLatestBaileysVersion para ${instanceId}: ${version.join(".")}`);
+        return version as [number, number, number];
+      } catch (err2: any) {
+        // eslint-disable-next-line no-console
+        console.log(`[BaileysProvider] fetchLatestBaileysVersion também falhou (instância ${instanceId}): ${err2?.message} - usando a versão padrão embutida na biblioteca`);
+        return undefined;
+      }
+    }
+  }
+
   async connectInstance(
     instanceId: string,
     opts: { fresh?: boolean; phoneNumber?: string } = {}
@@ -123,6 +179,11 @@ export class BaileysProvider implements MessagingProvider {
     // eslint-disable-next-line no-console
     console.log(`[BaileysProvider] auth state carregado para ${instanceId}, abrindo socket...`);
 
+    // Ver o comentário longo em resolveWaVersion() acima - só busca a versão
+    // atual do protocolo em pareamentos novos (fresh=true), que são os
+    // únicos afetados pelo problema da versão embutida ficar desatualizada.
+    const waVersion = fresh ? await this.resolveWaVersion(instanceId) : undefined;
+
     return new Promise<ConnectInstanceResult>((resolve) => {
       let settled = false;
       const settleOnce: PendingResolver = (result) => {
@@ -163,6 +224,10 @@ export class BaileysProvider implements MessagingProvider {
         auth: state,
         logger: logger as any,
         printQRInTerminal: false,
+        // Ver comentário em resolveWaVersion() acima - evita que o WhatsApp
+        // recuse pareamentos novos por causa da versão do protocolo embutida
+        // na biblioteca estar desatualizada.
+        ...(waVersion ? { version: waVersion } : {}),
         // CAUSA RAIZ do bug "código gerado, mas o celular recusa com 'Não foi
         // possível conectar o dispositivo'" (encontrada na documentação do
         // próprio Baileys, não em log nosso - o erro não aparece nos logs do
