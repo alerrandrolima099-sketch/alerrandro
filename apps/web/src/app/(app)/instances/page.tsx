@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone, Layers,
+  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone, Layers, KeyRound, QrCode,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
@@ -21,6 +21,11 @@ type Instance = {
   status: string;
   provider: string;
   qrCode: string | null;
+  // Código de pareamento (8 caracteres, letras+números) - segunda forma de
+  // conectar uma instância WHATSAPP_QR (seção 44), informando o número de
+  // telefone em vez de escanear o QR Code. Nunca vem preenchido ao mesmo
+  // tempo que qrCode - só um dos dois por vez, dependendo do método escolhido.
+  pairingCode: string | null;
   profilePicUrl: string | null;
   lastError: string | null;
   lastActivityAt: string | null;
@@ -169,6 +174,17 @@ export default function InstancesPage() {
   const [deviceLabelDraft, setDeviceLabelDraft] = useState<Record<string, string>>({});
   // Mesma lógica acima, só que pro campo "WhatsApp" (qual clone/slot).
   const [whatsappLabelDraft, setWhatsappLabelDraft] = useState<Record<string, string>>({});
+  // Método de conexão escolhido por instância (seção 44): "qr" (padrão,
+  // escanear QR Code) ou "phone" (digitar um número e receber um código de
+  // pareamento). Só é usado para instâncias WHATSAPP_QR ainda não
+  // conectadas - ver a derivação de `method` dentro do map() mais abaixo,
+  // que cai automaticamente em "phone" se já existir um pairingCode salvo
+  // (ex: depois de recarregar a página no meio desse fluxo).
+  const [connectMethod, setConnectMethod] = useState<Record<string, "qr" | "phone">>({});
+  // Número de telefone digitado pra pedir o código de pareamento (com DDI,
+  // ex: 5511999999999) - só guardado localmente até o clique em "Gerar
+  // código", que manda pra API dentro de connect().
+  const [phoneDraft, setPhoneDraft] = useState<Record<string, string>>({});
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   // Mensagem de erro de uma ação (Conectar/Pausar/Desconectar/Excluir/Salvar
   // IA) que falhou - mostrada como uma faixa no topo da página. Antes disso
@@ -278,11 +294,16 @@ export default function InstancesPage() {
     }
   }
 
-  async function connect(id: string) {
+  // phoneNumber (opcional, seção 44): quando informado, pede um código de
+  // pareamento pra esse número em vez de gerar QR Code.
+  async function connect(id: string, phoneNumber?: string) {
     setActionError(null);
     setBusy(id);
     try {
-      await api(`/instances/${id}/connect`, { method: "POST" });
+      await api(`/instances/${id}/connect`, {
+        method: "POST",
+        body: phoneNumber ? { phoneNumber } : undefined,
+      });
       await load();
     } catch (err: any) {
       setActionError(err?.message ?? "Não foi possível conectar este número. Tente novamente.");
@@ -518,7 +539,24 @@ export default function InstancesPage() {
               dos cards enormes que ocupavam quase a largura toda. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {instances.map((inst: Instance) => {
-              const showQr = inst.provider === "WHATSAPP_QR" && inst.status === "CONNECTING";
+              // Duas formas de conectar uma instância WHATSAPP_QR (seção 44):
+              // escanear um QR Code (padrão) ou digitar um número de telefone
+              // e receber um código de pareamento (letras+números) pra
+              // digitar no celular.
+              //
+              // `method` decide qual das duas telas mostrar ENQUANTO a
+              // conexão está em andamento (inclusive antes do QR/código
+              // chegar do backend) - por isso não pode depender só de
+              // inst.pairingCode existir: logo após clicar em "Gerar código"
+              // ainda não existe nada salvo, e nesse instante quem sabe qual
+              // método foi pedido é o clique local (connectMethod). Só cai
+              // de volta para inst.pairingCode como pista se não houver
+              // clique local nenhum - ex: a pessoa recarregou a página no
+              // meio de um pareamento por número já em andamento.
+              const method = connectMethod[inst.id] ?? (inst.pairingCode ? "phone" : "qr");
+              const isConnectingQr = inst.provider === "WHATSAPP_QR" && inst.status === "CONNECTING";
+              const showQr = isConnectingQr && method === "qr";
+              const showPairing = isConnectingQr && method === "phone";
               const statusLabel = inst.status === "PAUSED" ? "⏸️ Pausado" : inst.active ? "🟢 Ativo" : "🔴 Desconectado";
 
               return (
@@ -652,6 +690,30 @@ export default function InstancesPage() {
                     </div>
                   )}
 
+                  {/* Código de pareamento (seção 44): segunda forma de
+                      conectar, digitando o número de telefone em vez de
+                      escanear o QR Code - o próprio WhatsApp gera um código
+                      de 8 caracteres (letras+números) pra digitar em
+                      Aparelhos conectados → Conectar com número de telefone. */}
+                  {showPairing && (
+                    <div className="mb-3 flex flex-col items-center bg-background border border-border rounded-lg p-3">
+                      {inst.pairingCode ? (
+                        <>
+                          <p className="text-[10px] text-muted uppercase tracking-wide">Código de pareamento</p>
+                          <p className="text-xl font-mono font-semibold tracking-[0.25em] text-primary mt-1">
+                            {inst.pairingCode}
+                          </p>
+                          <p className="text-[11px] text-muted mt-2 text-center">
+                            WhatsApp → Aparelhos conectados → Conectar um aparelho → Conectar com número de telefone. Digite o
+                            código acima. Ele expira em alguns minutos.
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-muted">Gerando código, aguarde...</p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-1.5 mb-2.5 text-xs text-muted">
                     <div className="flex items-center gap-1.5">
                       <Flame size={12} className="text-orange-400 shrink-0" />
@@ -728,14 +790,78 @@ export default function InstancesPage() {
                     </span>
                   </div>
 
+                  {/* Seletor de método de conexão (seção 44) - só faz
+                      sentido pra WHATSAPP_QR, que é o único provedor com as
+                      duas opções (Cloud API e Mock conectam de um jeito só).
+                      Desabilitado enquanto uma tentativa já está em
+                      andamento (CONNECTING) pra não trocar de método no meio
+                      do fluxo. */}
+                  {!inst.active && inst.provider === "WHATSAPP_QR" && (
+                    <div className="mt-2 flex items-center gap-1 bg-background/60 border border-border rounded-lg p-0.5 text-[11px]">
+                      <button
+                        type="button"
+                        disabled={inst.status === "CONNECTING"}
+                        onClick={() => setConnectMethod((prev) => ({ ...prev, [inst.id]: "qr" }))}
+                        className={`flex-1 flex items-center justify-center gap-1 rounded-md px-2 py-1 transition-colors disabled:opacity-40 ${
+                          method === "qr" ? "bg-primary/20 text-primary" : "text-muted hover:text-white"
+                        }`}
+                      >
+                        <QrCode size={11} /> QR Code
+                      </button>
+                      <button
+                        type="button"
+                        disabled={inst.status === "CONNECTING"}
+                        onClick={() => setConnectMethod((prev) => ({ ...prev, [inst.id]: "phone" }))}
+                        className={`flex-1 flex items-center justify-center gap-1 rounded-md px-2 py-1 transition-colors disabled:opacity-40 ${
+                          method === "phone" ? "bg-primary/20 text-primary" : "text-muted hover:text-white"
+                        }`}
+                      >
+                        <KeyRound size={11} /> Número + código
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Número de telefone (com DDI) pra pedir o código de
+                      pareamento - pré-preenchido com o último número
+                      conectado nesta instância, se houver, só por
+                      conveniência (a pessoa ainda pode trocar). */}
+                  {!inst.active && inst.provider === "WHATSAPP_QR" && method === "phone" && (
+                    <input
+                      value={phoneDraft[inst.id] ?? inst.phoneNumber ?? ""}
+                      onChange={(e) => setPhoneDraft((prev) => ({ ...prev, [inst.id]: e.target.value }))}
+                      placeholder="Número com DDI (ex: 5511999999999)"
+                      disabled={inst.status === "CONNECTING"}
+                      className="mt-1.5 w-full bg-background/60 border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary transition-colors placeholder:text-muted/60 disabled:opacity-60"
+                    />
+                  )}
+
                   {!inst.active && (
                     <button
-                      disabled={busy === inst.id}
-                      onClick={() => connect(inst.id)}
+                      disabled={
+                        busy === inst.id ||
+                        (inst.provider === "WHATSAPP_QR" &&
+                          method === "phone" &&
+                          !(phoneDraft[inst.id] ?? inst.phoneNumber ?? "").trim())
+                      }
+                      onClick={() => {
+                        if (inst.provider === "WHATSAPP_QR" && method === "phone") {
+                          connect(inst.id, phoneDraft[inst.id] ?? inst.phoneNumber ?? "");
+                        } else {
+                          connect(inst.id);
+                        }
+                      }}
                       className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-primary/25 transition-colors"
                     >
                       <Wifi size={13} />
-                      {showQr ? "Gerar novo QR Code" : inst.status === "PAUSED" ? "Retomar" : "Conectar"}
+                      {showQr
+                        ? "Gerar novo QR Code"
+                        : showPairing
+                        ? "Gerar novo código"
+                        : inst.provider === "WHATSAPP_QR" && method === "phone"
+                        ? "Gerar código"
+                        : inst.status === "PAUSED"
+                        ? "Retomar"
+                        : "Conectar"}
                     </button>
                   )}
 
