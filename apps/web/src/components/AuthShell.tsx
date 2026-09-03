@@ -38,10 +38,9 @@ export function AuthShell({
 
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-glow">
-              <MessageCircle size={20} className="text-black" strokeWidth={2.5} />
-            </div>
-            <span className="font-semibold text-lg tracking-tight">WhatsApp SaaS</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/lowzap-icon.png" alt="LowZap" className="w-10 h-10 rounded-xl shadow-glow" />
+            <span className="font-semibold text-lg tracking-tight">LowZap</span>
           </div>
 
           <div className="space-y-8 max-w-md">
@@ -64,7 +63,7 @@ export function AuthShell({
             </ul>
           </div>
 
-          <p className="text-xs text-muted">© {new Date().getFullYear()} WhatsApp SaaS. Todos os direitos reservados.</p>
+          <p className="text-xs text-muted">© {new Date().getFullYear()} LowZap. Todos os direitos reservados.</p>
         </div>
       </div>
 
@@ -72,10 +71,9 @@ export function AuthShell({
       <div className="flex-1 flex items-center justify-center px-4 py-12 relative">
         <div className="w-full max-w-sm animate-fade-in-up">
           <div className="flex lg:hidden items-center gap-2.5 mb-8 justify-center">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <MessageCircle size={18} className="text-black" strokeWidth={2.5} />
-            </div>
-            <span className="font-semibold text-lg tracking-tight">WhatsApp SaaS</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/lowzap-icon.png" alt="LowZap" className="w-9 h-9 rounded-xl" />
+            <span className="font-semibold text-lg tracking-tight">LowZap</span>
           </div>
 
           <div className="glass rounded-2xl p-8 shadow-card">
