@@ -23,6 +23,9 @@ export type SendResult = {
 export type ConnectInstanceResult = {
   status: "CONNECTED" | "CONNECTING" | "ERROR";
   qrCode?: string;
+  // Código de pareamento (8 caracteres) - preenchido em vez de qrCode quando
+  // a conexão foi pedida com um número de telefone (ver BaileysProvider).
+  pairingCode?: string;
   error?: string;
 };
 
