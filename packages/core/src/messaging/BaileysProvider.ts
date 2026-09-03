@@ -73,7 +73,10 @@ export class BaileysProvider implements MessagingProvider {
     return dir;
   }
 
-  async connectInstance(instanceId: string, opts: { fresh?: boolean } = {}): Promise<ConnectInstanceResult> {
+  async connectInstance(
+    instanceId: string,
+    opts: { fresh?: boolean; phoneNumber?: string } = {}
+  ): Promise<ConnectInstanceResult> {
     const existingSocket = this.sockets.get(instanceId);
     if (existingSocket) {
       return { status: "CONNECTED" };
@@ -82,7 +85,7 @@ export class BaileysProvider implements MessagingProvider {
     const inFlight = this.connecting.get(instanceId);
     if (inFlight) return inFlight;
 
-    const promise = this.startSocket(instanceId, opts.fresh ?? false);
+    const promise = this.startSocket(instanceId, opts.fresh ?? false, opts.phoneNumber);
     this.connecting.set(instanceId, promise);
     try {
       return await promise;
@@ -91,9 +94,9 @@ export class BaileysProvider implements MessagingProvider {
     }
   }
 
-  private async startSocket(instanceId: string, fresh = false): Promise<ConnectInstanceResult> {
+  private async startSocket(instanceId: string, fresh = false, phoneNumber?: string): Promise<ConnectInstanceResult> {
     // eslint-disable-next-line no-console
-    console.log(`[BaileysProvider] startSocket instanceId=${instanceId} fresh=${fresh}`);
+    console.log(`[BaileysProvider] startSocket instanceId=${instanceId} fresh=${fresh} pairing=${phoneNumber ? "yes" : "no"}`);
 
     if (fresh) {
       // "fresh" só é true quando este connectInstance() veio de um clique
@@ -163,6 +166,52 @@ export class BaileysProvider implements MessagingProvider {
 
       sock.ev.on("creds.update", saveCreds);
 
+      // Código de pareamento (alternativa ao QR Code): quando o usuário
+      // escolhe conectar informando o número de telefone em vez de escanear
+      // o QR, o próprio Baileys gera um código de 8 caracteres (letras e
+      // números) que a pessoa digita no celular em WhatsApp → Aparelhos
+      // conectados → Conectar com número de telefone. Só faz sentido pedir
+      // isso quando a sessão ainda não está pareada (state.creds.registered
+      // só fica true depois de um pareamento completo, seja por QR ou por
+      // código) - com fresh:true (todo clique em "Conectar" vem daqui) a
+      // sessão sempre começa do zero, então essa checagem é mais uma trava de
+      // segurança do que algo que normalmente barra o fluxo.
+      if (phoneNumber && !state.creds.registered) {
+        const digits = phoneNumber.replace(/\D/g, "");
+        sock
+          .requestPairingCode(digits)
+          .then(async (code) => {
+            try {
+              await prisma.instance.update({
+                where: { id: instanceId },
+                data: { status: "CONNECTING", pairingCode: code, qrCode: null, lastError: null },
+              });
+              settleOnce({ status: "CONNECTING", pairingCode: code });
+            } catch (err: any) {
+              // eslint-disable-next-line no-console
+              console.error(`[BaileysProvider] falha ao salvar código de pareamento (instância ${instanceId}):`, err.message);
+              settleOnce({ status: "ERROR", error: err.message });
+            }
+          })
+          .catch(async (err: any) => {
+            // eslint-disable-next-line no-console
+            console.error(`[BaileysProvider] falha ao pedir código de pareamento (instância ${instanceId}):`, err?.message);
+            try {
+              await prisma.instance.update({
+                where: { id: instanceId },
+                data: {
+                  status: "ERROR",
+                  pairingCode: null,
+                  lastError: "Não foi possível gerar o código de pareamento. Confira o número (com DDI) e tente novamente.",
+                },
+              });
+            } catch {
+              /* melhor esforço */
+            }
+            settleOnce({ status: "ERROR", error: err?.message ?? "pairing_code_request_failed" });
+          });
+      }
+
       // Mensagens recebidas de contatos (seção 34): único jeito de capturar
       // inbound em instâncias WHATSAPP_QR, já que este provedor não usa
       // webhooks HTTP do Meta - tudo chega por eventos do próprio socket.
@@ -207,12 +256,17 @@ export class BaileysProvider implements MessagingProvider {
           `[BaileysProvider] connection.update instanceId=${instanceId} connection=${connection ?? "-"} qr=${qr ? "yes" : "no"}`
         );
 
-        if (qr) {
+        // Quando phoneNumber está presente, a conexão foi pedida via código de
+        // pareamento (bloco logo acima, fora deste listener) - ignora
+        // qualquer "qr" que o Baileys ainda emita neste modo, pra não
+        // sobrescrever o código de pareamento já salvo com uma imagem de QR
+        // que o usuário nem vai usar.
+        if (qr && !phoneNumber) {
           try {
             const qrDataUrl = await QRCode.toDataURL(qr);
             await prisma.instance.update({
               where: { id: instanceId },
-              data: { status: "CONNECTING", qrCode: qrDataUrl, lastError: null },
+              data: { status: "CONNECTING", qrCode: qrDataUrl, pairingCode: null, lastError: null },
             });
             settleOnce({ status: "CONNECTING", qrCode: qrDataUrl });
           } catch (err: any) {
@@ -240,7 +294,12 @@ export class BaileysProvider implements MessagingProvider {
         if (connection === "open") {
           this.sockets.set(instanceId, sock);
           this.restartAttempts.delete(instanceId);
-          const phoneNumber = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
+          // Renomeado pra realPhoneNumber (era "phoneNumber") pra não sombrear
+          // o parâmetro phoneNumber de startSocket - aquele é o número
+          // DIGITADO pelo usuário pra pedir o código de pareamento; este é o
+          // número REAL confirmado pelo próprio WhatsApp após a conexão
+          // abrir, que pode ser ligeiramente diferente (formatação, DDI etc).
+          const realPhoneNumber = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
 
           // Foto de perfil do próprio número (seção 36) - melhor esforço:
           // nem todo número tem uma definida, e às vezes a privacidade do
@@ -259,8 +318,9 @@ export class BaileysProvider implements MessagingProvider {
             data: {
               status: "CONNECTED",
               qrCode: null,
+              pairingCode: null,
               lastError: null,
-              ...(phoneNumber ? { phoneNumber } : {}),
+              ...(realPhoneNumber ? { phoneNumber: realPhoneNumber } : {}),
               ...(profilePicUrl ? { profilePicUrl } : {}),
             },
           });
@@ -318,6 +378,7 @@ export class BaileysProvider implements MessagingProvider {
               data: {
                 status: "DISCONNECTED",
                 qrCode: null,
+                pairingCode: null,
                 profilePicUrl: null,
                 lastError: "Sessão desconectada pelo celular (logout).",
               },
@@ -353,7 +414,7 @@ export class BaileysProvider implements MessagingProvider {
     }
     await prisma.instance.update({
       where: { id: instanceId },
-      data: { status: "DISCONNECTED", qrCode: null },
+      data: { status: "DISCONNECTED", qrCode: null, pairingCode: null },
     });
   }
 
