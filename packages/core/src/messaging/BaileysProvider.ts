@@ -166,51 +166,26 @@ export class BaileysProvider implements MessagingProvider {
 
       sock.ev.on("creds.update", saveCreds);
 
-      // Código de pareamento (alternativa ao QR Code): quando o usuário
-      // escolhe conectar informando o número de telefone em vez de escanear
-      // o QR, o próprio Baileys gera um código de 8 caracteres (letras e
-      // números) que a pessoa digita no celular em WhatsApp → Aparelhos
-      // conectados → Conectar com número de telefone. Só faz sentido pedir
-      // isso quando a sessão ainda não está pareada (state.creds.registered
-      // só fica true depois de um pareamento completo, seja por QR ou por
-      // código) - com fresh:true (todo clique em "Conectar" vem daqui) a
-      // sessão sempre começa do zero, então essa checagem é mais uma trava de
-      // segurança do que algo que normalmente barra o fluxo.
-      if (phoneNumber && !state.creds.registered) {
-        const digits = phoneNumber.replace(/\D/g, "");
-        sock
-          .requestPairingCode(digits)
-          .then(async (code) => {
-            try {
-              await prisma.instance.update({
-                where: { id: instanceId },
-                data: { status: "CONNECTING", pairingCode: code, qrCode: null, lastError: null },
-              });
-              settleOnce({ status: "CONNECTING", pairingCode: code });
-            } catch (err: any) {
-              // eslint-disable-next-line no-console
-              console.error(`[BaileysProvider] falha ao salvar código de pareamento (instância ${instanceId}):`, err.message);
-              settleOnce({ status: "ERROR", error: err.message });
-            }
-          })
-          .catch(async (err: any) => {
-            // eslint-disable-next-line no-console
-            console.error(`[BaileysProvider] falha ao pedir código de pareamento (instância ${instanceId}):`, err?.message);
-            try {
-              await prisma.instance.update({
-                where: { id: instanceId },
-                data: {
-                  status: "ERROR",
-                  pairingCode: null,
-                  lastError: "Não foi possível gerar o código de pareamento. Confira o número (com DDI) e tente novamente.",
-                },
-              });
-            } catch {
-              /* melhor esforço */
-            }
-            settleOnce({ status: "ERROR", error: err?.message ?? "pairing_code_request_failed" });
-          });
-      }
+      // Código de pareamento (alternativa ao QR Code): controla se já pedimos
+      // o código pra este socket, pra nunca pedir duas vezes (ver dentro do
+      // listener de connection.update abaixo).
+      //
+      // IMPORTANTE (correção de bug): a primeira versão disto chamava
+      // sock.requestPairingCode() aqui em cima, logo após criar o socket -
+      // e sempre falhava com o erro "Connection Closed". O motivo: nesse
+      // ponto o WebSocket com os servidores do WhatsApp ainda não tinha
+      // sido aberto de verdade (makeWASocket só monta o cliente e começa a
+      // conectar em segundo plano) - pedir um código de pareamento exige
+      // enviar um frame por essa conexão, que ainda não existia. Os
+      // exemplos oficiais do Baileys "funcionam" chamando isto logo após
+      // makeWASocket() porque normalmente esperam a pessoa digitar o número
+      // num prompt de terminal - esse tempo de digitação, sem querer, dá
+      // tempo do WebSocket abrir em segundo plano antes da chamada
+      // acontecer de fato. Aqui, sem prompt nenhum, a chamada saía
+      // instantânea demais. Corrigido pedindo o código só quando o próprio
+      // Baileys avisa (via connection.update) que a conexão entrou em
+      // "connecting" - ou seja, que o WebSocket já abriu de verdade.
+      let pairingRequested = false;
 
       // Mensagens recebidas de contatos (seção 34): único jeito de capturar
       // inbound em instâncias WHATSAPP_QR, já que este provedor não usa
@@ -256,11 +231,56 @@ export class BaileysProvider implements MessagingProvider {
           `[BaileysProvider] connection.update instanceId=${instanceId} connection=${connection ?? "-"} qr=${qr ? "yes" : "no"}`
         );
 
+        // Código de pareamento: pede assim que o PRIMEIRO connection.update
+        // chega (nunca antes disso - ver o comentário longo lá em cima, no
+        // lugar onde pairingRequested é declarado - e nunca mais de uma vez
+        // por socket, por isso a trava com pairingRequested). Normalmente
+        // esse primeiro evento já vem com connection === "connecting", mas
+        // não trava nesse valor exato de propósito: o que importa é só que
+        // o WebSocket já produziu algum evento (prova de que já abriu) -
+        // exceto se esse primeiro evento já for "close" (conexão morreu
+        // antes de sequer conectar), caso em que nem faz sentido tentar.
+        if (phoneNumber && !pairingRequested && !state.creds.registered && connection !== "close") {
+          pairingRequested = true;
+          const digits = phoneNumber.replace(/\D/g, "");
+          sock
+            .requestPairingCode(digits)
+            .then(async (code) => {
+              try {
+                await prisma.instance.update({
+                  where: { id: instanceId },
+                  data: { status: "CONNECTING", pairingCode: code, qrCode: null, lastError: null },
+                });
+                settleOnce({ status: "CONNECTING", pairingCode: code });
+              } catch (err: any) {
+                // eslint-disable-next-line no-console
+                console.error(`[BaileysProvider] falha ao salvar código de pareamento (instância ${instanceId}):`, err.message);
+                settleOnce({ status: "ERROR", error: err.message });
+              }
+            })
+            .catch(async (err: any) => {
+              // eslint-disable-next-line no-console
+              console.error(`[BaileysProvider] falha ao pedir código de pareamento (instância ${instanceId}):`, err?.message);
+              try {
+                await prisma.instance.update({
+                  where: { id: instanceId },
+                  data: {
+                    status: "ERROR",
+                    pairingCode: null,
+                    lastError: "Não foi possível gerar o código de pareamento. Confira o número (com DDI) e tente novamente.",
+                  },
+                });
+              } catch {
+                /* melhor esforço */
+              }
+              settleOnce({ status: "ERROR", error: err?.message ?? "pairing_code_request_failed" });
+            });
+        }
+
         // Quando phoneNumber está presente, a conexão foi pedida via código de
-        // pareamento (bloco logo acima, fora deste listener) - ignora
-        // qualquer "qr" que o Baileys ainda emita neste modo, pra não
-        // sobrescrever o código de pareamento já salvo com uma imagem de QR
-        // que o usuário nem vai usar.
+        // pareamento (bloco acima) - ignora qualquer "qr" que o Baileys ainda
+        // emita neste modo, pra não sobrescrever o código de pareamento já
+        // salvo com uma imagem de QR que o usuário nem vai usar.
         if (qr && !phoneNumber) {
           try {
             const qrDataUrl = await QRCode.toDataURL(qr);
