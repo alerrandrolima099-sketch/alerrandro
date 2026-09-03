@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Smartphone, Users, Workflow,
   Clock, UsersRound, ScrollText, Settings, Building2, LogOut, Menu, X, Flame,
-  MessageCircle, ShieldCheck, User, Radio, Headphones, Bot,
+  ShieldCheck, User, Radio, Headphones, Bot,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -59,10 +59,9 @@ export function Sidebar() {
       >
         <div className="px-5 py-5 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
-              <MessageCircle size={16} className="text-black" strokeWidth={2.5} />
-            </div>
-            <span className="font-semibold text-lg tracking-tight">WhatsApp SaaS</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/lowzap-icon.png" alt="LowZap" className="w-8 h-8 rounded-lg shrink-0" />
+            <span className="font-semibold text-lg tracking-tight">LowZap</span>
           </div>
         </div>
 
