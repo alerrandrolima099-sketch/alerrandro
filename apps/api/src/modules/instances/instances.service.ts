@@ -160,6 +160,27 @@ export class InstancesService {
     return updated;
   }
 
+  // Apelido livre de qual WhatsApp/clone esse número usa no aparelho (seção
+  // 43) - ex: "whatsapp-2", quando a pessoa usa apps de clonagem/espaço
+  // paralelo pra ter vários WhatsApp no mesmo celular. Mesmo padrão do
+  // updateDeviceLabel acima, só que pra essa outra informação.
+  async updateWhatsappLabel(tenantId: string, id: string, whatsappLabel: string | null) {
+    await this.getById(tenantId, id);
+    const trimmed = whatsappLabel?.trim();
+    const updated = await prisma.instance.update({
+      where: { id },
+      data: { whatsappLabel: trimmed ? trimmed : null },
+    });
+    await writeLog({
+      tenantId,
+      action: "INSTANCE_WHATSAPP_LABEL_UPDATED",
+      resource: "instance",
+      resourceId: id,
+      metadata: { whatsappLabel: trimmed ?? null },
+    });
+    return updated;
+  }
+
   async remove(tenantId: string, id: string) {
     await this.getById(tenantId, id);
     await prisma.instance.delete({ where: { id } });
