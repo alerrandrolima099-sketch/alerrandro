@@ -6,6 +6,7 @@ import {
   default as makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
+  Browsers,
   type WASocket,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
@@ -162,6 +163,27 @@ export class BaileysProvider implements MessagingProvider {
         auth: state,
         logger: logger as any,
         printQRInTerminal: false,
+        // CAUSA RAIZ do bug "código gerado, mas o celular recusa com 'Não foi
+        // possível conectar o dispositivo'" (encontrada na documentação do
+        // próprio Baileys, não em log nosso - o erro não aparece nos logs do
+        // servidor porque, do lado do Baileys, o pedido do código É aceito
+        // normalmente; é só na etapa seguinte, quando o celular tenta de
+        // fato validar o pareamento com o WhatsApp, que a rejeição acontece,
+        // e o socket cai em seguida com statusCode 401 (loggedOut) - por
+        // isso a instância aparecia como "Sessão desconectada pelo celular"
+        // mesmo nunca tendo pareado de verdade):
+        //
+        // Ao logar via CÓDIGO DE PAREAMENTO (diferente do QR Code), o
+        // WhatsApp exige que o socket se identifique com um fingerprint de
+        // navegador "real"/reconhecível (ex: "Mac OS" + "Google Chrome").
+        // Sem isso, o Baileys usa por padrão um fingerprint genérico próprio
+        // dele ("Baileys"/Chrome) - que funciona normalmente para login via
+        // QR Code, mas faz o WhatsApp rejeitar silenciosamente a etapa final
+        // do pareamento por código, mesmo com o código certo digitado a
+        // tempo. Por isso este "browser" só é forçado aqui quando phoneNumber
+        // está presente (modo código de pareamento) - o fluxo de QR Code
+        // continua exatamente como já funcionava, sem risco de regressão.
+        ...(phoneNumber ? { browser: Browsers.macOS("Google Chrome") } : {}),
       });
 
       sock.ev.on("creds.update", saveCreds);
@@ -421,8 +443,21 @@ export class BaileysProvider implements MessagingProvider {
 
           if (loggedOut) {
             // Sessão invalidada (logout pelo celular) - limpa credenciais para
-            // forçar um novo QR Code na próxima tentativa de conexão.
+            // forçar um novo QR Code/código de pareamento na próxima
+            // tentativa de conexão.
             fs.rmSync(this.sessionDir(instanceId), { recursive: true, force: true });
+
+            // Mesmo statusCode 401 (loggedOut) também é o que o WhatsApp
+            // devolve quando um PAREAMENTO POR CÓDIGO nunca chegou a se
+            // completar de verdade (ex: código digitado errado no celular,
+            // ou expirado) - nesse caso "Sessão desconectada pelo celular
+            // (logout)" é uma mensagem enganosa, porque nunca existiu uma
+            // sessão conectada para deslogar. state.creds.registered só vira
+            // true quando o pareamento realmente termina, então usamos isso
+            // aqui pra diferenciar as duas situações e mostrar uma mensagem
+            // que ajuda o usuário a entender o que fazer.
+            const failedPairingAttempt = Boolean(phoneNumber) && !state.creds.registered;
+
             await prisma.instance.update({
               where: { id: instanceId },
               data: {
@@ -430,7 +465,9 @@ export class BaileysProvider implements MessagingProvider {
                 qrCode: null,
                 pairingCode: null,
                 profilePicUrl: null,
-                lastError: "Sessão desconectada pelo celular (logout).",
+                lastError: failedPairingAttempt
+                  ? "O WhatsApp recusou o código de pareamento. Confira se digitou o número certo (com DDI, ex: 5511999998888) e o código antes dele expirar, depois clique em \"Gerar novo código\"."
+                  : "Sessão desconectada pelo celular (logout).",
               },
             });
           } else {
