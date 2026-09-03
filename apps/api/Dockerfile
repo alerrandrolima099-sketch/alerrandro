@@ -62,4 +62,11 @@ EXPOSE 4000
 # pedisse, o comando falha (e aparece no log de deploy) em vez de aplicar
 # algo destrutivo silenciosamente - de propósito, não usamos
 # --accept-data-loss aqui.
-CMD ["sh", "-c", "cd /app && npx prisma db push --schema=packages/database/prisma/schema.prisma --skip-generate && cd /app/apps/api && node dist/main.js"]
+#
+# seedCatalogGroups: passo TEMPORÁRIO (seção 42) para popular o catálogo
+# global com um lote de grupos pedido pelo usuário, sem precisar de login
+# manual no painel admin. É idempotente (nunca duplica, ver o próprio
+# script) e "|| true" garante que uma falha aqui NUNCA impede a API de
+# subir. Depois de confirmado que os grupos foram criados, este passo será
+# removido do Dockerfile numa etapa de limpeza separada - não é permanente.
+CMD ["sh", "-c", "cd /app && npx prisma db push --schema=packages/database/prisma/schema.prisma --skip-generate && (npx ts-node packages/database/prisma/seedCatalogGroups.ts || true) && cd /app/apps/api && node dist/main.js"]
