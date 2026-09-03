@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone,
+  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone, Layers,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
@@ -28,6 +28,10 @@ type Instance = {
   // 43) - ex: "iPhone 17 Pro Max". Puramente organizacional, você que
   // digita e salva; nulo até a primeira vez que alguém preenche.
   deviceLabel: string | null;
+  // Apelido livre de qual WhatsApp/clone esse número usa no aparelho (seção
+  // 43) - ex: "whatsapp-2", pra quem usa apps de clonagem/espaço paralelo
+  // pra ter vários WhatsApp no mesmo celular. Mesmo padrão do deviceLabel.
+  whatsappLabel: string | null;
   createdAt: string;
   aiAutoReplyEnabled: boolean;
   aiSystemPrompt: string | null;
@@ -163,6 +167,8 @@ export default function InstancesPage() {
   // campo mostra inst.deviceLabel direto, então o polling de QR Code (que
   // recarrega a lista a cada 3s) nunca apaga o que ainda não foi salvo.
   const [deviceLabelDraft, setDeviceLabelDraft] = useState<Record<string, string>>({});
+  // Mesma lógica acima, só que pro campo "WhatsApp" (qual clone/slot).
+  const [whatsappLabelDraft, setWhatsappLabelDraft] = useState<Record<string, string>>({});
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   // Mensagem de erro de uma ação (Conectar/Pausar/Desconectar/Excluir/Salvar
   // IA) que falhou - mostrada como uma faixa no topo da página. Antes disso
@@ -366,6 +372,29 @@ export default function InstancesPage() {
       });
     } catch (err: any) {
       setActionError(err?.message ?? "Não foi possível salvar o aparelho. Tente novamente.");
+    }
+  }
+
+  // Mesma lógica do saveDeviceLabel acima, só que pro campo "WhatsApp"
+  // (qual clone/slot esse número usa, ex: "whatsapp-2").
+  async function saveWhatsappLabel(id: string) {
+    const draft = whatsappLabelDraft[id];
+    if (draft === undefined) return;
+    const inst = instances.find((i) => i.id === id);
+    const current = inst?.whatsappLabel ?? "";
+    const trimmed = draft.trim();
+    if (trimmed === current) return;
+    setActionError(null);
+    try {
+      await api(`/instances/${id}/whatsapp-label`, { method: "PATCH", body: { whatsappLabel: trimmed || null } });
+      await load();
+      setWhatsappLabelDraft((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err: any) {
+      setActionError(err?.message ?? "Não foi possível salvar o WhatsApp. Tente novamente.");
     }
   }
 
@@ -575,6 +604,24 @@ export default function InstancesPage() {
                         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                       }}
                       placeholder="Aparelho (ex: iPhone 17 Pro Max)"
+                      className="flex-1 min-w-0 bg-transparent text-xs outline-none placeholder:text-muted/60"
+                    />
+                  </div>
+
+                  {/* WhatsApp/clone (seção 43): campo livre pra anotar em
+                      qual WhatsApp (ex: um app clonado/espaço paralelo)
+                      esse número usa no aparelho - ex: "whatsapp-2". Mesmo
+                      comportamento do campo Aparelho acima. */}
+                  <div className="mb-2.5 flex items-center gap-1.5 bg-background/60 border border-border rounded-lg px-2.5 py-1.5 focus-within:border-primary transition-colors">
+                    <Layers size={12} className="text-muted shrink-0" />
+                    <input
+                      value={whatsappLabelDraft[inst.id] ?? inst.whatsappLabel ?? ""}
+                      onChange={(e) => setWhatsappLabelDraft((prev) => ({ ...prev, [inst.id]: e.target.value }))}
+                      onBlur={() => saveWhatsappLabel(inst.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      placeholder="WhatsApp (ex: whatsapp-2)"
                       className="flex-1 min-w-0 bg-transparent text-xs outline-none placeholder:text-muted/60"
                     />
                   </div>
