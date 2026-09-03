@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus,
+  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
@@ -155,6 +155,13 @@ export default function InstancesPage() {
   const [aiDraft, setAiDraft] = useState<Record<string, AiDraft>>({});
   const [aiOpen, setAiOpen] = useState<Record<string, boolean>>({});
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  // Mensagem de erro de uma ação (Conectar/Pausar/Desconectar/Excluir/Salvar
+  // IA) que falhou - mostrada como uma faixa no topo da página. Antes disso
+  // usávamos alert() do navegador, mas em alguns navegadores/apps embutidos
+  // (ex: abrir o link de dentro do WhatsApp, ou o app "adicionado à tela
+  // inicial" no iPhone) o alert() nativo pode não aparecer - a faixa aqui
+  // sempre aparece porque é HTML normal da própria página.
+  const [actionError, setActionError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Total de números conectados e ativos agora - pedido explícito do
@@ -211,6 +218,7 @@ export default function InstancesPage() {
 
   async function createInstance(e: React.FormEvent) {
     e.preventDefault();
+    setActionError(null);
     try {
       await api("/instances", { method: "POST", body: { name, provider } });
       setName("");
@@ -218,29 +226,31 @@ export default function InstancesPage() {
       setShowCreate(false);
       await load();
     } catch (err: any) {
-      alert(err?.message ?? "Não foi possível criar o número. Tente novamente.");
+      setActionError(err?.message ?? "Não foi possível criar o número. Tente novamente.");
     }
   }
 
   async function connect(id: string) {
+    setActionError(null);
     setBusy(id);
     try {
       await api(`/instances/${id}/connect`, { method: "POST" });
       await load();
     } catch (err: any) {
-      alert(err?.message ?? "Não foi possível conectar este número. Tente novamente.");
+      setActionError(err?.message ?? "Não foi possível conectar este número. Tente novamente.");
     } finally {
       setBusy(null);
     }
   }
 
   async function disconnect(id: string) {
+    setActionError(null);
     setBusy(id);
     try {
       await api(`/instances/${id}/disconnect`, { method: "POST" });
       await load();
     } catch (err: any) {
-      alert(err?.message ?? "Não foi possível desconectar este número. Tente novamente.");
+      setActionError(err?.message ?? "Não foi possível desconectar este número. Tente novamente.");
     } finally {
       setBusy(null);
     }
@@ -251,12 +261,13 @@ export default function InstancesPage() {
   // atendimentos) até o usuário retomar. Diferente de desconectar, que
   // encerra a sessão de fato.
   async function pause(id: string) {
+    setActionError(null);
     setBusy(id);
     try {
       await api(`/instances/${id}/pause`, { method: "POST" });
       await load();
     } catch (err: any) {
-      alert(err?.message ?? "Não foi possível pausar este número. Tente novamente.");
+      setActionError(err?.message ?? "Não foi possível pausar este número. Tente novamente.");
     } finally {
       setBusy(null);
     }
@@ -265,18 +276,20 @@ export default function InstancesPage() {
   // Antes desta correção, um erro aqui (ex: instância já removida em outra
   // aba, sessão expirada, falha de rede) ficava sem NENHUM feedback: a
   // Promise rejeitava sem try/catch, a lista não recarregava e, aos olhos de
-  // quem clicou, "o botão Excluir não fazia nada". Agora o motivo real do
-  // erro aparece num alerta, igual às outras ações (Conectar/Pausar/
-  // Desconectar) - e o botão fica com feedback de "processando" (setBusy)
-  // enquanto a exclusão está em andamento.
+  // quem clicou, "o botão Excluir não fazia nada". Depois usamos alert(),
+  // mas alguns navegadores/apps embutidos suprimem alert() - agora o erro
+  // aparece numa faixa na própria página (mais confiável), e o botão fica
+  // com feedback de "processando" (setBusy) enquanto a exclusão está em
+  // andamento.
   async function remove(id: string) {
     if (!confirm("Excluir esta instância?")) return;
+    setActionError(null);
     setBusy(id);
     try {
       await api(`/instances/${id}`, { method: "DELETE" });
       await load();
     } catch (err: any) {
-      alert(err?.message ?? "Não foi possível excluir este número. Tente novamente.");
+      setActionError(err?.message ?? "Não foi possível excluir este número. Tente novamente.");
     } finally {
       setBusy(null);
     }
@@ -295,6 +308,7 @@ export default function InstancesPage() {
   async function saveAiSettings(id: string) {
     const draft = aiDraft[id];
     if (!draft) return;
+    setActionError(null);
     setBusy(id);
     try {
       await api(`/instances/${id}/ai-settings`, {
@@ -307,7 +321,7 @@ export default function InstancesPage() {
       });
       await load();
     } catch (err: any) {
-      alert(err?.message ?? "Não foi possível salvar as configurações de IA. Tente novamente.");
+      setActionError(err?.message ?? "Não foi possível salvar as configurações de IA. Tente novamente.");
     } finally {
       setBusy(null);
     }
@@ -333,6 +347,20 @@ export default function InstancesPage() {
           <Plus size={16} /> Novo número
         </button>
       </div>
+
+      {/* Faixa de erro de ações (Conectar/Pausar/Desconectar/Excluir/Salvar
+          IA) - substitui o alert() do navegador, que alguns navegadores/apps
+          embutidos não exibem. Fica visível até o usuário fechar (X) ou até
+          a próxima ação ser tentada. */}
+      {actionError && (
+        <div className="mb-6 flex items-start gap-2.5 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-sm text-red-400">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+          <p className="flex-1">{actionError}</p>
+          <button onClick={() => setActionError(null)} className="shrink-0 hover:text-white transition-colors" aria-label="Fechar aviso">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {showCreate && (
         <form onSubmit={createInstance} className="bg-surface border border-border rounded-xl p-4 mb-6 flex gap-3 items-end flex-wrap">
