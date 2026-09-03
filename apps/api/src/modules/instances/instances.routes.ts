@@ -92,6 +92,19 @@ instancesRouter.patch("/:id/device-label", async (req, res, next) => {
   }
 });
 
+const updateWhatsappLabelSchema = z.object({
+  whatsappLabel: z.string().max(120).nullable().optional(),
+});
+
+instancesRouter.patch("/:id/whatsapp-label", async (req, res, next) => {
+  try {
+    const body = updateWhatsappLabelSchema.parse(req.body);
+    res.json(await instancesService.updateWhatsappLabel(req.tenantId!, req.params.id, body.whatsappLabel ?? null));
+  } catch (err) {
+    next(err);
+  }
+});
+
 instancesRouter.delete("/:id", async (req, res, next) => {
   try {
     await instancesService.remove(req.tenantId!, req.params.id);
