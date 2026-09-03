@@ -231,50 +231,80 @@ export class BaileysProvider implements MessagingProvider {
           `[BaileysProvider] connection.update instanceId=${instanceId} connection=${connection ?? "-"} qr=${qr ? "yes" : "no"}`
         );
 
-        // Código de pareamento: pede assim que o PRIMEIRO connection.update
-        // chega (nunca antes disso - ver o comentário longo lá em cima, no
-        // lugar onde pairingRequested é declarado - e nunca mais de uma vez
-        // por socket, por isso a trava com pairingRequested). Normalmente
-        // esse primeiro evento já vem com connection === "connecting", mas
-        // não trava nesse valor exato de propósito: o que importa é só que
-        // o WebSocket já produziu algum evento (prova de que já abriu) -
-        // exceto se esse primeiro evento já for "close" (conexão morreu
-        // antes de sequer conectar), caso em que nem faz sentido tentar.
+        // Código de pareamento: dispara assim que o PRIMEIRO connection.update
+        // chega, e nunca mais de uma vez por socket (trava com
+        // pairingRequested).
+        //
+        // CORREÇÃO (2ª rodada - a 1ª tentativa de corrigir isto, esperar o
+        // primeiro connection.update, não foi suficiente): na prática esse
+        // primeiro evento (connection: "connecting") dispara no MESMO
+        // instante em que o socket é criado - antes do WebSocket de verdade
+        // terminar de abrir - então sock.requestPairingCode() continuava
+        // falhando na hora com "Connection Closed", só que agora bem mais
+        // raramente óbvio de reproduzir (o log mostra os dois eventos com o
+        // mesmo timestamp). Como não dá pra confiar em nenhum evento
+        // específico do Baileys pra saber com certeza quando o WebSocket
+        // interno já está pronto pra mandar esse pedido, a correção agora é
+        // tentar de novo automaticamente por alguns segundos (com uma
+        // pequena espera entre tentativas) sempre que o erro for
+        // especificamente "Connection Closed" - assim que o WebSocket
+        // termina de abrir (tipicamente em menos de 1s), uma das tentativas
+        // seguintes funciona. Só desiste de vez depois de várias tentativas
+        // seguidas falhando.
         if (phoneNumber && !pairingRequested && !state.creds.registered && connection !== "close") {
           pairingRequested = true;
           const digits = phoneNumber.replace(/\D/g, "");
-          sock
-            .requestPairingCode(digits)
-            .then(async (code) => {
+
+          const requestWithRetry = async () => {
+            const maxAttempts = 8;
+            const delayMs = 1_000;
+            let lastErr: any = null;
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
               try {
-                await prisma.instance.update({
-                  where: { id: instanceId },
-                  data: { status: "CONNECTING", pairingCode: code, qrCode: null, lastError: null },
-                });
-                settleOnce({ status: "CONNECTING", pairingCode: code });
+                const code = await sock.requestPairingCode(digits);
+                try {
+                  await prisma.instance.update({
+                    where: { id: instanceId },
+                    data: { status: "CONNECTING", pairingCode: code, qrCode: null, lastError: null },
+                  });
+                  settleOnce({ status: "CONNECTING", pairingCode: code });
+                } catch (err: any) {
+                  // eslint-disable-next-line no-console
+                  console.error(`[BaileysProvider] falha ao salvar código de pareamento (instância ${instanceId}):`, err.message);
+                  settleOnce({ status: "ERROR", error: err.message });
+                }
+                return;
               } catch (err: any) {
+                lastErr = err;
                 // eslint-disable-next-line no-console
-                console.error(`[BaileysProvider] falha ao salvar código de pareamento (instância ${instanceId}):`, err.message);
-                settleOnce({ status: "ERROR", error: err.message });
+                console.log(
+                  `[BaileysProvider] tentativa ${attempt}/${maxAttempts} de pedir código de pareamento falhou (instância ${instanceId}): ${err?.message}`
+                );
+                if (attempt < maxAttempts) {
+                  await new Promise((resolve) => setTimeout(resolve, delayMs));
+                }
               }
-            })
-            .catch(async (err: any) => {
-              // eslint-disable-next-line no-console
-              console.error(`[BaileysProvider] falha ao pedir código de pareamento (instância ${instanceId}):`, err?.message);
-              try {
-                await prisma.instance.update({
-                  where: { id: instanceId },
-                  data: {
-                    status: "ERROR",
-                    pairingCode: null,
-                    lastError: "Não foi possível gerar o código de pareamento. Confira o número (com DDI) e tente novamente.",
-                  },
-                });
-              } catch {
-                /* melhor esforço */
-              }
-              settleOnce({ status: "ERROR", error: err?.message ?? "pairing_code_request_failed" });
-            });
+            }
+
+            // eslint-disable-next-line no-console
+            console.error(`[BaileysProvider] desistiu de pedir código de pareamento (instância ${instanceId}) após ${maxAttempts} tentativas:`, lastErr?.message);
+            try {
+              await prisma.instance.update({
+                where: { id: instanceId },
+                data: {
+                  status: "ERROR",
+                  pairingCode: null,
+                  lastError: "Não foi possível gerar o código de pareamento. Confira o número (com DDI) e tente novamente.",
+                },
+              });
+            } catch {
+              /* melhor esforço */
+            }
+            settleOnce({ status: "ERROR", error: lastErr?.message ?? "pairing_code_request_failed" });
+          };
+
+          requestWithRetry();
         }
 
         // Quando phoneNumber está presente, a conexão foi pedida via código de
