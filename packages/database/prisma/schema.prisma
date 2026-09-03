@@ -262,6 +262,11 @@ model Instance {
   persona        Persona?              @relation(fields: [personaId], references: [id], onDelete: SetNull)
   lastError      String?
   lastActivityAt DateTime?
+  // Apelido livre pra você lembrar em qual aparelho físico esse WhatsApp
+  // está conectado (seção 39/43) - ex: "iPhone 17 Pro Max". Puramente
+  // informativo, não afeta nada da conexão/mensageria - só ajuda a
+  // organizar quando você tem vários números em vários celulares.
+  deviceLabel    String?
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
