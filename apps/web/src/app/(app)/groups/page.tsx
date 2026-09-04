@@ -194,8 +194,29 @@ function JoinModal({
     };
   }, [group.id]);
 
-  const eligibleInstances = instances.filter((i) => eligibility(i).eligible);
+  // Não deixa selecionar de novo quem já entrou NESTE grupo (seção 49) -
+  // pedido explícito do usuário: se o número 1 já entrou no grupo 6, ele não
+  // pode ficar disponível pra "entrar" de novo nesse mesmo grupo (continua
+  // podendo entrar em outros grupos normalmente). O backend reaplica a
+  // mesma regra em joinAll(), então isso aqui é só espelho pra já vir
+  // bloqueado na seleção.
+  const eligibleInstances = instances.filter((i) => eligibility(i).eligible && !alreadyJoined.has(i.id));
   const allActiveSelected = eligibleInstances.length > 0 && eligibleInstances.every((i) => selected.has(i.id));
+
+  // Se `alreadyJoined` chegar depois de o usuário já ter marcado algo (ou o
+  // fetch demorar), tira da seleção qualquer instância que na verdade já
+  // participa deste grupo - evita mandar reentrar com quem já está lá.
+  useEffect(() => {
+    if (alreadyJoined.size === 0) return;
+    setSelected((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const id of alreadyJoined) {
+        if (next.delete(id)) changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [alreadyJoined]);
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -330,17 +351,24 @@ function JoinModal({
                 const elig = eligibility(inst);
                 const isSelected = selected.has(inst.id);
                 const isJoined = alreadyJoined.has(inst.id);
+                // Já participa deste grupo (seção 49): mesmo que a instância
+                // esteja conectada e elegível por todo o resto, ela não pode
+                // ser selecionada de novo pra este MESMO grupo - só pra
+                // outros grupos onde ainda não entrou.
+                const canSelect = elig.eligible && !isJoined;
                 return (
                   <label
                     key={inst.id}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors ${
-                      elig.eligible
+                      canSelect
                         ? `cursor-pointer ${isSelected ? "bg-primary/10 border-primary/30" : "bg-background/40 border-border hover:border-primary/40"}`
                         : "bg-background/20 border-border/50 opacity-60 cursor-not-allowed"
                     }`}
                   >
-                    {elig.eligible ? (
+                    {canSelect ? (
                       <input type="checkbox" checked={isSelected} onChange={() => toggleOne(inst.id)} className="shrink-0" />
+                    ) : isJoined ? (
+                      <Check size={14} className="text-green-400 shrink-0" />
                     ) : (
                       <Lock size={14} className="text-muted shrink-0" />
                     )}
@@ -353,8 +381,8 @@ function JoinModal({
                       </div>
                       <div className="text-xs text-muted truncate">{inst.phoneNumber ?? "—"}</div>
                     </div>
-                    <span className="text-xs text-muted shrink-0" title={elig.reason}>
-                      {elig.emoji} {elig.reason}
+                    <span className="text-xs text-muted shrink-0" title={isJoined ? "Já participa deste grupo" : elig.reason}>
+                      {isJoined ? "✅ Já participa" : `${elig.emoji} ${elig.reason}`}
                     </span>
                   </label>
                 );
