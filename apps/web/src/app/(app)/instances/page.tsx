@@ -495,7 +495,7 @@ export default function InstancesPage() {
           </button>
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-black font-medium rounded-lg px-4 py-2 text-sm transition-colors shadow-sm shadow-primary/20"
+            className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-white font-medium rounded-lg px-4 py-2 text-sm transition-colors shadow-sm shadow-primary/20"
           >
             <Plus size={16} /> Novo número
           </button>
@@ -579,7 +579,7 @@ export default function InstancesPage() {
               </p>
             )}
           </div>
-          <button className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium">Criar</button>
+          <button className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium">Criar</button>
           <button type="button" onClick={() => setShowCreate(false)} className="text-muted text-sm px-3 py-2">
             Cancelar
           </button>
@@ -594,7 +594,7 @@ export default function InstancesPage() {
           action={
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium mx-auto"
+              className="flex items-center gap-2 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium mx-auto"
             >
               <Plus size={16} /> Novo número
             </button>
