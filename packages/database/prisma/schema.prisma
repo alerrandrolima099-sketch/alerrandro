@@ -279,6 +279,13 @@ model Instance {
   // clonagem/espaço paralelo pra ter vários WhatsApp no mesmo celular.
   // Puramente informativo, igual o deviceLabel acima.
   whatsappLabel  String?
+  // Marcador manual "Número em uso no Leona" (seção 45): o usuário liga isso
+  // num número pra sinalizar (só visualmente, pra ele mesmo) que aquele
+  // número está sendo usado agora numa outra ferramenta externa chamada
+  // Leona - não afeta conexão, mensageria, aquecimento nem nenhuma outra
+  // lógica; só acrescenta um destaque e reordena a lista de Meus Números
+  // (números marcados sobem para o topo - ver orderBy em instances.service).
+  inUseLeona     Boolean               @default(false)
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
