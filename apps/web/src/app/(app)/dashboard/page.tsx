@@ -178,18 +178,18 @@ export default function DashboardPage() {
               <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <defs>
                   <linearGradient id="msgGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke="#232a3a" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" stroke="#8b98a9" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#8b98a9" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} width={32} />
+                <CartesianGrid stroke="#2d2748" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" stroke="#a9a3c2" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#a9a3c2" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} width={32} />
                 <Tooltip
-                  contentStyle={{ background: "#171c27", border: "1px solid #232a3a", borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: "#8b98a9" }}
+                  contentStyle={{ background: "#211b3d", border: "1px solid #2d2748", borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: "#a9a3c2" }}
                 />
-                <Area type="monotone" dataKey="count" name="Mensagens" stroke="#22c55e" fill="url(#msgGradient)" strokeWidth={2} />
+                <Area type="monotone" dataKey="count" name="Mensagens" stroke="#8b5cf6" fill="url(#msgGradient)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -218,7 +218,7 @@ export default function DashboardPage() {
               title="Nenhum aquecimento ativo"
               description="Crie um par de aquecimento para começar a esquentar dois dos seus números."
               action={
-                <a href="/warmup" className="text-xs bg-primary text-black rounded-lg px-3 py-1.5 font-medium">
+                <a href="/warmup" className="text-xs bg-primary text-white rounded-lg px-3 py-1.5 font-medium">
                   Ir para Aquecimento
                 </a>
               }
