@@ -258,7 +258,7 @@ export default function AttendancePage() {
               placeholder="Escreva uma mensagem (atendimento manual)..."
               className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
             />
-            <button className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium flex items-center gap-2">
+            <button className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium flex items-center gap-2">
               <Send size={14} /> Enviar
             </button>
           </form>
