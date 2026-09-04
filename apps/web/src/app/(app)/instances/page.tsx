@@ -157,7 +157,7 @@ function pluralize(n: number, singular: string, plural: string) {
 // já existia no Dashboard.
 function MeterBar({ pct, colorBg }: { pct: number; colorBg: string }) {
   return (
-    <div className="h-1.5 bg-background rounded-full overflow-hidden">
+    <div className="h-1 bg-background rounded-full overflow-hidden">
       <div className={`h-full rounded-full transition-all ${colorBg}`} style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
     </div>
   );
@@ -556,7 +556,7 @@ export default function InstancesPage() {
           {/* Grade compacta e responsiva (seção 39): 1 coluna no celular, 2-3
               no tablet, 4-5 no desktop - cards pequenos lado a lado, em vez
               dos cards enormes que ocupavam quase a largura toda. */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5">
             {instances.map((inst: Instance) => {
               // Duas formas de conectar uma instância WHATSAPP_QR (seção 44):
               // escanear um QR Code (padrão) ou digitar um número de telefone
@@ -581,13 +581,13 @@ export default function InstancesPage() {
               return (
                 <div
                   key={inst.id}
-                  className="bg-surface border border-border rounded-xl p-3.5 hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-card transition-all flex flex-col"
+                  className="bg-surface border border-border rounded-xl p-2.5 hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-card transition-all flex flex-col"
                 >
-                  <div className="flex items-start gap-2.5 mb-2.5">
-                    <InstanceAvatar instance={inst} size={36} />
+                  <div className="flex items-start gap-2 mb-2">
+                    <InstanceAvatar instance={inst} size={28} />
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-medium truncate">{inst.name}</h3>
-                      <p className="text-xs text-muted truncate">{inst.phoneNumber ?? "—"}</p>
+                      <h3 className="text-xs font-medium truncate">{inst.name}</h3>
+                      <p className="text-[11px] text-muted truncate">{inst.phoneNumber ?? "—"}</p>
                     </div>
                     {/* Marcador manual "Número em uso no Leona" (seção 45): um
                         clique só, sem confirmação (é reversível e não afeta a
@@ -604,7 +604,7 @@ export default function InstancesPage() {
                       aria-label={inst.inUseLeona ? "Remover marcador Leona" : "Marcar como em uso no Leona"}
                       title={inst.inUseLeona ? "Remover marcador \"Em uso no Leona\"" : "Marcar como \"Em uso no Leona\""}
                     >
-                      <Pin size={16} fill={inst.inUseLeona ? "currentColor" : "none"} />
+                      <Pin size={14} fill={inst.inUseLeona ? "currentColor" : "none"} />
                     </button>
                     <div className="relative shrink-0" ref={openMenu === inst.id ? menuRef : undefined}>
                       <button
@@ -612,7 +612,7 @@ export default function InstancesPage() {
                         className="text-muted hover:text-white p-1 rounded-lg hover:bg-surfaceHover transition-colors"
                         aria-label="Ações do número"
                       >
-                        <MoreVertical size={16} />
+                        <MoreVertical size={14} />
                       </button>
                       {openMenu === inst.id && (
                         <div className="absolute right-0 top-8 z-20 w-48 bg-surface2 border border-border rounded-lg shadow-card py-1 text-xs">
@@ -668,8 +668,8 @@ export default function InstancesPage() {
                       celular físico esse WhatsApp está conectado - ex:
                       "iPhone 17 Pro Max". Puramente organizacional, salva
                       sozinho ao sair do campo ou apertar Enter. */}
-                  <div className="mb-2.5 flex items-center gap-1.5 bg-background/60 border border-border rounded-lg px-2.5 py-1.5 focus-within:border-primary transition-colors">
-                    <Smartphone size={12} className="text-muted shrink-0" />
+                  <div className="mb-2 flex items-center gap-1.5 bg-background/60 border border-border rounded-lg px-2 py-1 focus-within:border-primary transition-colors">
+                    <Smartphone size={10} className="text-muted shrink-0" />
                     <input
                       value={deviceLabelDraft[inst.id] ?? inst.deviceLabel ?? ""}
                       onChange={(e) => setDeviceLabelDraft((prev) => ({ ...prev, [inst.id]: e.target.value }))}
@@ -678,7 +678,7 @@ export default function InstancesPage() {
                         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                       }}
                       placeholder="Aparelho (ex: iPhone 17 Pro Max)"
-                      className="flex-1 min-w-0 bg-transparent text-xs outline-none placeholder:text-muted/60"
+                      className="flex-1 min-w-0 bg-transparent text-[11px] outline-none placeholder:text-muted/60"
                     />
                   </div>
 
@@ -686,8 +686,8 @@ export default function InstancesPage() {
                       qual WhatsApp (ex: um app clonado/espaço paralelo)
                       esse número usa no aparelho - ex: "whatsapp-2". Mesmo
                       comportamento do campo Aparelho acima. */}
-                  <div className="mb-2.5 flex items-center gap-1.5 bg-background/60 border border-border rounded-lg px-2.5 py-1.5 focus-within:border-primary transition-colors">
-                    <Layers size={12} className="text-muted shrink-0" />
+                  <div className="mb-2 flex items-center gap-1.5 bg-background/60 border border-border rounded-lg px-2 py-1 focus-within:border-primary transition-colors">
+                    <Layers size={10} className="text-muted shrink-0" />
                     <input
                       value={whatsappLabelDraft[inst.id] ?? inst.whatsappLabel ?? ""}
                       onChange={(e) => setWhatsappLabelDraft((prev) => ({ ...prev, [inst.id]: e.target.value }))}
@@ -696,16 +696,16 @@ export default function InstancesPage() {
                         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                       }}
                       placeholder="WhatsApp (ex: whatsapp-2)"
-                      className="flex-1 min-w-0 bg-transparent text-xs outline-none placeholder:text-muted/60"
+                      className="flex-1 min-w-0 bg-transparent text-[11px] outline-none placeholder:text-muted/60"
                     />
                   </div>
 
-                  <div className="mb-2.5">
+                  <div className="mb-2">
                     <Badge status={inst.status} />
                   </div>
 
                   {inst.lastError && (
-                    <p className="text-[11px] text-red-400 mb-2.5 bg-red-500/5 border border-red-500/20 rounded-lg px-2 py-1.5 line-clamp-2">
+                    <p className="text-[10px] text-red-400 mb-2 bg-red-500/5 border border-red-500/20 rounded-lg px-1.5 py-1 line-clamp-2">
                       {inst.lastError}
                     </p>
                   )}
@@ -715,23 +715,23 @@ export default function InstancesPage() {
                       o Leona lembrar rapidamente que esse número já está "em
                       uso" lá. Não afeta conexão, mensageria nem aquecimento. */}
                   {inst.inUseLeona && (
-                    <p className="text-[11px] text-amber-400 mb-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2 py-1.5 flex items-center gap-1.5">
-                      <Pin size={11} fill="currentColor" /> Número em uso no Leona
+                    <p className="text-[10px] text-amber-400 mb-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-1.5 py-1 flex items-center gap-1.5">
+                      <Pin size={10} fill="currentColor" /> Número em uso no Leona
                     </p>
                   )}
 
                   {showQr && (
-                    <div className="mb-3 flex flex-col items-center bg-background border border-border rounded-lg p-3">
+                    <div className="mb-2 flex flex-col items-center bg-background border border-border rounded-lg p-2">
                       {inst.qrCode ? (
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={inst.qrCode} alt="QR Code do WhatsApp" className="w-36 h-36 rounded" />
-                          <p className="text-[11px] text-muted mt-2 text-center">
+                          <img src={inst.qrCode} alt="QR Code do WhatsApp" className="w-28 h-28 rounded" />
+                          <p className="text-[10px] text-muted mt-1.5 text-center">
                             WhatsApp → Aparelhos conectados → Conectar um aparelho. O código expira em segundos.
                           </p>
                         </>
                       ) : (
-                        <p className="text-xs text-muted">Gerando QR Code, aguarde...</p>
+                        <p className="text-[11px] text-muted">Gerando QR Code, aguarde...</p>
                       )}
                     </div>
                   )}
@@ -742,41 +742,41 @@ export default function InstancesPage() {
                       de 8 caracteres (letras+números) pra digitar em
                       Aparelhos conectados → Conectar com número de telefone. */}
                   {showPairing && (
-                    <div className="mb-3 flex flex-col items-center bg-background border border-border rounded-lg p-3">
+                    <div className="mb-2 flex flex-col items-center bg-background border border-border rounded-lg p-2">
                       {inst.pairingCode ? (
                         <>
-                          <p className="text-[10px] text-muted uppercase tracking-wide">Código de pareamento</p>
-                          <p className="text-xl font-mono font-semibold tracking-[0.25em] text-primary mt-1">
+                          <p className="text-[9px] text-muted uppercase tracking-wide">Código de pareamento</p>
+                          <p className="text-base font-mono font-semibold tracking-[0.25em] text-primary mt-1">
                             {inst.pairingCode}
                           </p>
-                          <p className="text-[11px] text-muted mt-2 text-center">
+                          <p className="text-[10px] text-muted mt-1.5 text-center">
                             WhatsApp → Aparelhos conectados → Conectar um aparelho → Conectar com número de telefone. Digite o
                             código acima. Ele expira em alguns minutos.
                           </p>
                         </>
                       ) : (
-                        <p className="text-xs text-muted">Gerando código, aguarde...</p>
+                        <p className="text-[11px] text-muted">Gerando código, aguarde...</p>
                       )}
                     </div>
                   )}
 
-                  <div className="space-y-1.5 mb-2.5 text-xs text-muted">
+                  <div className="space-y-1 mb-2 text-[11px] text-muted">
                     <div className="flex items-center gap-1.5">
-                      <Flame size={12} className="text-orange-400 shrink-0" />
+                      <Flame size={10} className="text-orange-400 shrink-0" />
                       {inst.daysWarming} {pluralize(inst.daysWarming, "dia", "dias")} aquecendo
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Users size={12} className="shrink-0" />
+                      <Users size={10} className="shrink-0" />
                       {inst.groupsJoined} {pluralize(inst.groupsJoined, "grupo", "grupos")}
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <MessageCircle size={12} className="shrink-0" />
+                      <MessageCircle size={10} className="shrink-0" />
                       {inst.messagesReceived} {pluralize(inst.messagesReceived, "mensagem recebida", "mensagens recebidas")}
                     </div>
                   </div>
 
-                  <div className="mb-2">
-                    <div className="flex items-center justify-between text-[11px] mb-1">
+                  <div className="mb-1.5">
+                    <div className="flex items-center justify-between text-[10px] mb-0.5">
                       <span className="text-muted">Nível de aquecimento</span>
                       <span className={WARMUP_TEXT[inst.warmupColor]}>
                         {inst.warmupLevel}% {inst.warmupTierLabel}
@@ -785,8 +785,8 @@ export default function InstancesPage() {
                     <MeterBar pct={inst.warmupLevel} colorBg={WARMUP_BG[inst.warmupColor]} />
                   </div>
 
-                  <div className="mb-2.5">
-                    <div className="flex items-center justify-between text-[11px] mb-1">
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between text-[10px] mb-0.5">
                       <span className="text-muted">Saúde</span>
                       <span className={HEALTH_TEXT[inst.healthColor]}>
                         {inst.healthScore}/100 {inst.healthTierLabel}
@@ -795,12 +795,12 @@ export default function InstancesPage() {
                     <MeterBar pct={inst.healthScore} colorBg={HEALTH_BG[inst.healthColor]} />
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs mb-2.5">
+                  <div className="flex items-center gap-1.5 text-[11px] mb-2">
                     {inst.evolution7d.status === "ok" ? (
                       <>
-                        {inst.evolution7d.direction === "up" && <TrendingUp size={12} className="text-green-400 shrink-0" />}
-                        {inst.evolution7d.direction === "down" && <TrendingDown size={12} className="text-red-400 shrink-0" />}
-                        {inst.evolution7d.direction === "flat" && <Minus size={12} className="text-muted shrink-0" />}
+                        {inst.evolution7d.direction === "up" && <TrendingUp size={10} className="text-green-400 shrink-0" />}
+                        {inst.evolution7d.direction === "down" && <TrendingDown size={10} className="text-red-400 shrink-0" />}
+                        {inst.evolution7d.direction === "flat" && <Minus size={10} className="text-muted shrink-0" />}
                         <span
                           className={
                             inst.evolution7d.direction === "up"
@@ -816,13 +816,13 @@ export default function InstancesPage() {
                       </>
                     ) : (
                       <>
-                        <Minus size={12} className="text-muted shrink-0" />
+                        <Minus size={10} className="text-muted shrink-0" />
                         <span className="text-muted">Dados insuficientes</span>
                       </>
                     )}
                   </div>
 
-                  <div className="mt-auto pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted gap-2">
+                  <div className="mt-auto pt-1.5 border-t border-border flex items-center justify-between text-[10px] text-muted gap-2">
                     <span className="shrink-0">{statusLabel}</span>
                     <span className="truncate">
                       {inst.lastActivityAt
@@ -843,26 +843,26 @@ export default function InstancesPage() {
                       andamento (CONNECTING) pra não trocar de método no meio
                       do fluxo. */}
                   {!inst.active && inst.provider === "WHATSAPP_QR" && (
-                    <div className="mt-2 flex items-center gap-1 bg-background/60 border border-border rounded-lg p-0.5 text-[11px]">
+                    <div className="mt-1.5 flex items-center gap-1 bg-background/60 border border-border rounded-lg p-0.5 text-[10px]">
                       <button
                         type="button"
                         disabled={inst.status === "CONNECTING"}
                         onClick={() => setConnectMethod((prev) => ({ ...prev, [inst.id]: "qr" }))}
-                        className={`flex-1 flex items-center justify-center gap-1 rounded-md px-2 py-1 transition-colors disabled:opacity-40 ${
+                        className={`flex-1 flex items-center justify-center gap-1 rounded-md px-1.5 py-0.5 transition-colors disabled:opacity-40 ${
                           method === "qr" ? "bg-primary/20 text-primary" : "text-muted hover:text-white"
                         }`}
                       >
-                        <QrCode size={11} /> QR Code
+                        <QrCode size={10} /> QR Code
                       </button>
                       <button
                         type="button"
                         disabled={inst.status === "CONNECTING"}
                         onClick={() => setConnectMethod((prev) => ({ ...prev, [inst.id]: "phone" }))}
-                        className={`flex-1 flex items-center justify-center gap-1 rounded-md px-2 py-1 transition-colors disabled:opacity-40 ${
+                        className={`flex-1 flex items-center justify-center gap-1 rounded-md px-1.5 py-0.5 transition-colors disabled:opacity-40 ${
                           method === "phone" ? "bg-primary/20 text-primary" : "text-muted hover:text-white"
                         }`}
                       >
-                        <KeyRound size={11} /> Número + código
+                        <KeyRound size={10} /> Número + código
                       </button>
                     </div>
                   )}
@@ -877,7 +877,7 @@ export default function InstancesPage() {
                       onChange={(e) => setPhoneDraft((prev) => ({ ...prev, [inst.id]: e.target.value }))}
                       placeholder="Número com DDI (ex: 5511999999999)"
                       disabled={inst.status === "CONNECTING"}
-                      className="mt-1.5 w-full bg-background/60 border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary transition-colors placeholder:text-muted/60 disabled:opacity-60"
+                      className="mt-1 w-full bg-background/60 border border-border rounded-lg px-2 py-1 text-[11px] outline-none focus:border-primary transition-colors placeholder:text-muted/60 disabled:opacity-60"
                     />
                   )}
 
@@ -896,9 +896,9 @@ export default function InstancesPage() {
                           connect(inst.id);
                         }
                       }}
-                      className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-primary/25 transition-colors"
+                      className="mt-1.5 w-full flex items-center justify-center gap-1.5 text-[11px] bg-primary/15 text-primary rounded-lg px-2.5 py-1 disabled:opacity-50 hover:bg-primary/25 transition-colors"
                     >
-                      <Wifi size={13} />
+                      <Wifi size={12} />
                       {showQr
                         ? "Gerar novo QR Code"
                         : showPairing
@@ -912,19 +912,19 @@ export default function InstancesPage() {
                   )}
 
                   {aiOpen[inst.id] && (
-                    <div className="mt-2.5 bg-background/60 border border-border rounded-lg p-3">
-                      <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <div className="mt-2 bg-background/60 border border-border rounded-lg p-2.5">
+                      <label className="flex items-center gap-2 text-[11px] cursor-pointer">
                         <input
                           type="checkbox"
                           checked={aiDraft[inst.id]?.enabled ?? inst.aiAutoReplyEnabled}
                           onChange={(e) => updateDraft(inst.id, { enabled: e.target.checked })}
                         />
-                        <Bot size={13} className="text-primary" /> Resposta automática por IA
+                        <Bot size={12} className="text-primary" /> Resposta automática por IA
                       </label>
                       <select
                         value={aiDraft[inst.id]?.personaId ?? inst.personaId ?? ""}
                         onChange={(e) => updateDraft(inst.id, { personaId: e.target.value || null })}
-                        className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary transition-colors mt-2 mb-2"
+                        className="w-full bg-surface border border-border rounded-lg px-2 py-1 text-[11px] outline-none focus:border-primary transition-colors mt-1.5 mb-1.5"
                       >
                         <option value="">Sem perfil (usar só o texto abaixo, se houver)</option>
                         {personas.map((p) => (
@@ -938,9 +938,9 @@ export default function InstancesPage() {
                         onChange={(e) => updateDraft(inst.id, { prompt: e.target.value })}
                         placeholder="Texto livre (opcional) - tem prioridade sobre o perfil selecionado."
                         rows={2}
-                        className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-primary resize-y transition-colors"
+                        className="w-full bg-surface border border-border rounded-lg px-2 py-1 text-[11px] outline-none focus:border-primary resize-y transition-colors"
                       />
-                      <p className="text-[11px] text-muted mt-1">
+                      <p className="text-[10px] text-muted mt-1">
                         Gerencie os perfis em{" "}
                         <a href="/personas" className="text-primary hover:underline">
                           Perfis de Conversa
@@ -950,9 +950,9 @@ export default function InstancesPage() {
                       <button
                         disabled={busy === inst.id}
                         onClick={() => saveAiSettings(inst.id)}
-                        className="mt-2 flex items-center gap-1.5 text-xs bg-primary/15 text-primary rounded-lg px-3 py-1.5 disabled:opacity-50 hover:bg-primary/25 transition-colors"
+                        className="mt-1.5 flex items-center gap-1.5 text-[11px] bg-primary/15 text-primary rounded-lg px-2.5 py-1 disabled:opacity-50 hover:bg-primary/25 transition-colors"
                       >
-                        <Sparkles size={12} /> Salvar IA
+                        <Sparkles size={11} /> Salvar IA
                       </button>
                     </div>
                   )}
