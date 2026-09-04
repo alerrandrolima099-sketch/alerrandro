@@ -6,35 +6,38 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Paleta "escuro premium" (seção 37 - modernização visual): a base
-        // continua escura, mas com um leve tom azulado (em vez de um cinza
-        // neutro) e o verde de marca ganha companhia de um acento
-        // violeta/índigo usado em gradientes e detalhes, pra dar uma cara
-        // mais "produto SaaS moderno" sem perder a identidade original.
-        background: "#0a0d13",
-        surface: "#12161f",
-        surfaceHover: "#1a1f2c",
-        surface2: "#171c27", // um degrau acima do surface, para cards dentro de cards
-        border: "#232a3a",
+        // Paleta "roxo escuro premium" (seção 40 - redesign de identidade
+        // visual): o sistema deixa de usar o tema preto/azulado com verde de
+        // marca e passa a usar uma base roxo bem escura, quase preta, com um
+        // roxo vibrante como cor de marca/ação - sem gradientes chamativos
+        // ou tons neon, para manter a leitura confortável e uma cara "SaaS
+        // premium". A sidebar ganha um tom próprio (levemente mais escuro
+        // que os cards), conforme pedido.
+        background: "#0F0C1D",
+        sidebar: "#121025",
+        surface: "#1A1633",
+        surfaceHover: "#251F47",
+        surface2: "#211B3D", // um degrau acima do surface, para cards dentro de cards e inputs
+        border: "#2D2748",
         borderLight: "rgba(255,255,255,0.08)",
-        primary: "#22c55e",
-        primaryDark: "#16a34a",
-        primaryLight: "#4ade80",
-        accent: "#818cf8", // índigo - usado em gradientes e detalhes de destaque
-        accentLight: "#a5b4fc",
-        muted: "#8b98a9",
+        primary: "#8B5CF6",
+        primaryDark: "#7C3AED",
+        primaryLight: "#A78BFA",
+        accent: "#A78BFA", // roxo claro - usado em detalhes de destaque e gradientes sutis
+        accentLight: "#C4B5FD",
+        muted: "#A9A3C2",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        glow: "0 0 0 1px rgba(34,197,94,0.15), 0 8px 24px -8px rgba(34,197,94,0.35)",
+        glow: "0 0 0 1px rgba(139,92,246,0.15), 0 8px 24px -8px rgba(139,92,246,0.35)",
         card: "0 1px 2px rgba(0,0,0,0.4), 0 12px 32px -16px rgba(0,0,0,0.6)",
         soft: "0 1px 2px rgba(0,0,0,0.3)",
       },
       backgroundImage: {
         "mesh-premium":
-          "radial-gradient(ellipse 80% 50% at 20% -10%, rgba(34,197,94,0.18), transparent), radial-gradient(ellipse 60% 50% at 100% 0%, rgba(129,140,248,0.14), transparent)",
+          "radial-gradient(ellipse 80% 50% at 20% -10%, rgba(139,92,246,0.14), transparent), radial-gradient(ellipse 60% 50% at 100% 0%, rgba(167,139,250,0.10), transparent)",
       },
       keyframes: {
         fadeInUp: {
