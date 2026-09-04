@@ -485,24 +485,26 @@ export default function InstancesPage() {
           explícito do usuário com uma imagem de referência. Escondida
           quando não há nenhum número cadastrado ainda (nada pra mostrar). */}
       {instances.length > 0 && (
-        <div className="relative overflow-hidden mb-6 rounded-2xl border border-green-500/20 bg-gradient-to-r from-background via-surface to-green-950/40 px-5 py-4 flex items-center gap-4">
-          <div className="shrink-0 w-11 h-11 rounded-xl bg-green-500/15 border border-green-500/30 flex items-center justify-center">
-            <Rocket size={20} className="text-green-400" />
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h2 className="text-sm sm:text-base font-semibold whitespace-nowrap">Números disponíveis para escala</h2>
-            <span className="text-2xl sm:text-3xl font-bold text-green-400 leading-none">{activeCount}</span>
-          </div>
-          <div className="hidden sm:block w-px h-8 bg-border shrink-0" />
-          <p className="hidden sm:block text-sm text-muted whitespace-nowrap">
-            {activeCount} de {instances.length} números conectados e ativos
-          </p>
-          {/* Ilustração decorativa de foguetes - só visual, escondida em telas
-              pequenas pra não brigar com o resto do conteúdo. */}
-          <div className="ml-auto hidden md:flex items-end gap-1.5 pr-1 opacity-90">
-            <Rocket size={20} className="text-green-500/60 -rotate-12 translate-y-1" />
-            <Rocket size={30} className="text-green-400" />
-            <Rocket size={20} className="text-green-500/60 rotate-12 translate-y-1" />
+        <div className="flex justify-center mb-6">
+          <div className="relative overflow-hidden w-fit max-w-full rounded-2xl border border-green-500/20 bg-gradient-to-r from-background via-surface to-green-950/40 px-5 py-4 flex items-center gap-4">
+            <div className="shrink-0 w-11 h-11 rounded-xl bg-green-500/15 border border-green-500/30 flex items-center justify-center">
+              <Rocket size={20} className="text-green-400" />
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-sm sm:text-base font-semibold whitespace-nowrap">Números disponíveis para escala</h2>
+              <span className="text-2xl sm:text-3xl font-bold text-green-400 leading-none">{activeCount}</span>
+            </div>
+            <div className="hidden sm:block w-px h-8 bg-border shrink-0" />
+            <p className="hidden sm:block text-sm text-muted whitespace-nowrap">
+              {activeCount} de {instances.length} números conectados e ativos
+            </p>
+            {/* Ilustração decorativa de foguetes - só visual, escondida em
+                telas pequenas pra não brigar com o resto do conteúdo. */}
+            <div className="hidden md:flex items-end gap-1.5 pr-1 opacity-90">
+              <Rocket size={20} className="text-green-500/60 -rotate-12 translate-y-1" />
+              <Rocket size={30} className="text-green-400" />
+              <Rocket size={20} className="text-green-500/60 rotate-12 translate-y-1" />
+            </div>
           </div>
         </div>
       )}
