@@ -30,7 +30,12 @@ type Group = {
   stats: GroupStats;
 };
 
-type InstanceLite = { id: string; name: string; phoneNumber: string | null; status: string; provider: string };
+// inUseLeona (seção 48): marcador manual "Número em uso no Leona" (ver
+// instances/page.tsx) - quando true, o número não pode ser selecionado pra
+// entrar em grupos (ver eligibility() abaixo), pedido explícito do usuário
+// pra não "dar bobeira" e usar um número que já está sendo usado em outra
+// ferramenta pra entrar em grupos por aqui ao mesmo tempo.
+type InstanceLite = { id: string; name: string; phoneNumber: string | null; status: string; provider: string; inUseLeona: boolean };
 
 type GroupJoinStatus = "QUEUED" | "JOINING" | "JOINED" | "FAILED";
 
@@ -59,6 +64,14 @@ const FILTERS: { value: FilterValue; label: string }[] = [
 // elegibilidade antes de executar, então o que está aqui é só espelho da
 // mesma regra pro usuário nunca conseguir selecionar algo que vai falhar.
 function eligibility(inst: InstanceLite): { eligible: boolean; emoji: string; reason: string } {
+  // inUseLeona (seção 48): checado antes de qualquer outra coisa - número
+  // marcado como "em uso no Leona" nunca fica disponível pra entrar em
+  // grupos, mesmo que esteja conectado e elegível por todo o resto. O
+  // backend reaplica essa mesma regra em joinAll(), então isso aqui é só
+  // espelho pra já vir bloqueado na seleção.
+  if (inst.inUseLeona) {
+    return { eligible: false, emoji: "📌", reason: "Em uso no Leona - não entra em grupos enquanto marcado" };
+  }
   if (inst.provider !== "WHATSAPP_QR") {
     return { eligible: false, emoji: "🔒", reason: "Só números conectados via QR Code entram em grupos" };
   }
