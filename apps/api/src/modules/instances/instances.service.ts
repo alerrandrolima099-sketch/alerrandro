@@ -13,9 +13,15 @@ import type { MessagingProviderType } from "@whatsapp-saas/database";
  */
 export class InstancesService {
   /** Lista "Meus Números" (seção 39) - cada instância já vem com saúde,
-   * nível de aquecimento, dias aquecendo, grupos, mensagens e evolução. */
+   * nível de aquecimento, dias aquecendo, grupos, mensagens e evolução.
+   * Ordenação (seção 45): números marcados como "em uso no Leona" sempre
+   * aparecem primeiro (inUseLeona desc) - dentro de cada grupo (marcados /
+   * não marcados), mais recentes primeiro, como já era antes. */
   async list(tenantId: string) {
-    const instances = await prisma.instance.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } });
+    const instances = await prisma.instance.findMany({
+      where: { tenantId },
+      orderBy: [{ inUseLeona: "desc" }, { createdAt: "desc" }],
+    });
     return attachInstanceStats(tenantId, instances);
   }
 
@@ -190,6 +196,28 @@ export class InstancesService {
       resource: "instance",
       resourceId: id,
       metadata: { whatsappLabel: trimmed ?? null },
+    });
+    return updated;
+  }
+
+  // Marcador manual "Número em uso no Leona" (seção 45): liga/desliga o
+  // destaque + reordenação pro topo da lista (ver orderBy em list() acima).
+  // Puramente organizacional - não chama nenhum provedor nem afeta a
+  // conexão real do número, é só um sinalizador visual pra quem está usando
+  // o LowZap com o Leona ao mesmo tempo saber rapidamente qual número já
+  // está "em uso" lá.
+  async setInUseLeona(tenantId: string, id: string, inUseLeona: boolean) {
+    await this.getById(tenantId, id);
+    const updated = await prisma.instance.update({
+      where: { id },
+      data: { inUseLeona },
+    });
+    await writeLog({
+      tenantId,
+      action: "INSTANCE_IN_USE_LEONA_UPDATED",
+      resource: "instance",
+      resourceId: id,
+      metadata: { inUseLeona },
     });
     return updated;
   }
