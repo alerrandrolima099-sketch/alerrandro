@@ -4,18 +4,20 @@
 
 html,
 body {
-  background-color: #0a0d13;
-  color: #e6e9ee;
+  background-color: #0f0c1d;
+  color: #f5f3ff;
 }
 
-/* Modernização visual (seção 37): um "mesh" de gradientes bem sutil, fixo
-   atrás de todo o conteúdo, pra dar profundidade ao fundo escuro sem
-   atrapalhar a leitura - a mesma técnica usada em telas de login/dashboard
-   de produtos SaaS mais recentes. Fica praticamente imperceptível atrás dos
-   cards (que têm fundo sólido), mas dá vida aos espaços vazios. */
+/* Redesign de identidade visual (seção 40): um "mesh" de gradientes bem
+   sutil, fixo atrás de todo o conteúdo, pra dar profundidade ao fundo roxo
+   escuro sem atrapalhar a leitura - a mesma técnica usada em telas de
+   login/dashboard de produtos SaaS mais recentes. Fica praticamente
+   imperceptível atrás dos cards (que têm fundo sólido), mas dá vida aos
+   espaços vazios. Intencionalmente discreto (sem neon, sem gradiente
+   chamativo). */
 body {
-  background-image: radial-gradient(ellipse 70% 50% at 15% -10%, rgba(34, 197, 94, 0.08), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(129, 140, 248, 0.07), transparent);
+  background-image: radial-gradient(ellipse 70% 50% at 15% -10%, rgba(139, 92, 246, 0.07), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(167, 139, 250, 0.06), transparent);
   background-attachment: fixed;
   background-repeat: no-repeat;
 }
@@ -25,29 +27,29 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #232c3a;
+  background: #2d2748;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2d3648;
+  background: #3a3260;
 }
 
 * {
-  scrollbar-color: #232c3a transparent;
+  scrollbar-color: #2d2748 transparent;
 }
 
 /* Efeito "vidro" reutilizável para cards de destaque (login, hero do
    dashboard, etc.) - fundo semi-transparente + blur, com uma borda bem
    fraca de luz pra simular profundidade. */
 .glass {
-  background: rgba(18, 22, 31, 0.72);
+  background: rgba(26, 22, 51, 0.72);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .text-gradient-primary {
-  background-image: linear-gradient(135deg, #4ade80, #818cf8);
+  background-image: linear-gradient(135deg, #a78bfa, #8b5cf6);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -56,6 +58,6 @@ body {
 /* Foco por teclado bem visível (acessibilidade), mas discreto no clique do
    mouse - usa :focus-visible em vez de :focus puro. */
 :focus-visible {
-  outline: 2px solid #22c55e;
+  outline: 2px solid #8b5cf6;
   outline-offset: 2px;
 }
