@@ -57,8 +57,13 @@ export class GroupsService {
     // (GroupJoin.status=JOINED) NESTE grupo especificamente. Tudo em lote
     // (2 queries no total, nunca uma por grupo) para não virar N+1 numa
     // conta com muitos grupos.
+    //
+    // inUseLeona (seção 48): número marcado como "em uso no Leona" fica de
+    // fora do pool de elegíveis - o usuário pediu explicitamente que esses
+    // números não fiquem disponíveis para entrar em grupos enquanto
+    // estiverem marcados, já que estão sendo usados em outra ferramenta.
     const eligibleInstances = await prisma.instance.findMany({
-      where: { tenantId, status: "CONNECTED", provider: "WHATSAPP_QR" },
+      where: { tenantId, status: "CONNECTED", provider: "WHATSAPP_QR", inUseLeona: false },
       select: { id: true },
     });
     const eligibleIds = eligibleInstances.map((i) => i.id);
@@ -177,6 +182,10 @@ export class GroupsService {
    * este tenant) nunca entra por engano só porque o ID veio no corpo da
    * requisição. Quando omitido/vazio, mantém o comportamento original:
    * entra com TODAS as instâncias elegíveis do tenant.
+   *
+   * inUseLeona (seção 48): mesma regra do eligibleCount em list() acima -
+   * número marcado como "em uso no Leona" nunca entra em grupo por aqui,
+   * mesmo que o ID tenha sido passado explicitamente em instanceIds.
    */
   async joinAll(tenantId: string, groupId: string, instanceIds?: string[]) {
     const group = await prisma.group.findFirst({ where: { id: groupId, OR: [{ tenantId }, { tenantId: null }] } });
@@ -192,6 +201,7 @@ export class GroupsService {
         tenantId,
         status: "CONNECTED",
         provider: "WHATSAPP_QR",
+        inUseLeona: false,
         ...(instanceIds && instanceIds.length > 0 ? { id: { in: instanceIds } } : {}),
       },
     });
