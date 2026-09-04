@@ -49,7 +49,7 @@ export default function SettingsPage() {
             />
           </div>
           {message && <p className="text-sm text-muted">{message}</p>}
-          <button className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium">Salvar</button>
+          <button className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium">Salvar</button>
         </form>
       </div>
 
