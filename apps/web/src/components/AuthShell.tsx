@@ -25,7 +25,7 @@ export function AuthShell({
   return (
     <div className="min-h-screen flex">
       {/* Painel de marca - some em telas pequenas */}
-      <div className="hidden lg:flex lg:w-[46%] relative overflow-hidden bg-gradient-to-br from-[#0d1420] via-[#0a0d13] to-[#0d1118] border-r border-border">
+      <div className="hidden lg:flex lg:w-[46%] relative overflow-hidden bg-gradient-to-br from-[#171233] via-[#0F0C1D] to-[#120f24] border-r border-border">
         <div
           className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-primary/20 blur-3xl animate-blob"
           aria-hidden
