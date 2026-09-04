@@ -86,7 +86,7 @@ export default function PersonasPage() {
         </div>
         <button
           onClick={startCreate}
-          className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-black font-medium rounded-lg px-4 py-2 text-sm whitespace-nowrap"
+          className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-white font-medium rounded-lg px-4 py-2 text-sm whitespace-nowrap"
         >
           <Plus size={16} /> Novo perfil
         </button>
@@ -116,7 +116,7 @@ export default function PersonasPage() {
             />
           </div>
           <div className="flex gap-2">
-            <button disabled={busy} className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50">
+            <button disabled={busy} className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50">
               {editingId ? "Salvar alterações" : "Criar perfil"}
             </button>
             <button type="button" onClick={() => setShowForm(false)} className="text-muted text-sm px-3 py-2">
@@ -140,7 +140,7 @@ export default function PersonasPage() {
           action={
             <button
               onClick={startCreate}
-              className="flex items-center gap-2 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium mx-auto"
+              className="flex items-center gap-2 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium mx-auto"
             >
               <Plus size={16} /> Novo perfil
             </button>
