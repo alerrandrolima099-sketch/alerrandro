@@ -67,7 +67,7 @@ export default function ContactsPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-black font-medium rounded-lg px-4 py-2 text-sm"
+          className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-white font-medium rounded-lg px-4 py-2 text-sm"
         >
           <Plus size={16} /> Novo contato
         </button>
@@ -88,7 +88,7 @@ export default function ContactsPage() {
             <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm" />
           </div>
           <div className="flex gap-2">
-            <button className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium">Salvar</button>
+            <button className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium">Salvar</button>
             <button type="button" onClick={() => setShowCreate(false)} className="text-muted text-sm px-3 py-2">Cancelar</button>
           </div>
         </form>
