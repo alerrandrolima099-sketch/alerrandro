@@ -299,7 +299,7 @@ function JoinModal({
               <button
                 disabled={selected.size === 0 || submitting}
                 onClick={confirmJoin}
-                className="flex items-center gap-1.5 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
               >
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
                 {submitting ? "Iniciando..." : `Entrar com ${selected.size} ${pluralize(selected.size, "instância", "instâncias")}`}
@@ -312,7 +312,7 @@ function JoinModal({
               onCompleted();
               onClose();
             }}
-            className="w-full bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium"
+            className="w-full bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium"
           >
             Concluir
           </button>
@@ -633,7 +633,7 @@ function EditModal({ group, onClose, onSaved }: { group: Group; onClose: () => v
           <button type="button" onClick={onClose} className="text-muted text-sm px-3 py-2">
             Cancelar
           </button>
-          <button disabled={saving} className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50">
+          <button disabled={saving} className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50">
             {saving ? "Salvando..." : "Salvar"}
           </button>
         </div>
@@ -880,7 +880,7 @@ export default function GroupsPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap"
+          className="flex items-center gap-2 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap"
         >
           <Plus size={16} /> Novo grupo
         </button>
@@ -893,7 +893,7 @@ export default function GroupsPage() {
           <input required placeholder="Link de convite oficial (https://chat.whatsapp.com/...)" value={form.inviteLink} onChange={(e) => setForm({ ...form, inviteLink: e.target.value })} className="bg-background border border-border rounded-lg px-3 py-2 text-sm md:col-span-2" />
           <textarea placeholder="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="bg-background border border-border rounded-lg px-3 py-2 text-sm md:col-span-2" />
           <div className="flex gap-2 md:col-span-2">
-            <button className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium">Salvar</button>
+            <button className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium">Salvar</button>
             <button type="button" onClick={() => setShowCreate(false)} className="text-muted text-sm px-3 py-2">Cancelar</button>
           </div>
         </form>
@@ -940,7 +940,7 @@ export default function GroupsPage() {
           action={
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium mx-auto"
+              className="flex items-center gap-2 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium mx-auto"
             >
               <Plus size={16} /> Novo grupo
             </button>
