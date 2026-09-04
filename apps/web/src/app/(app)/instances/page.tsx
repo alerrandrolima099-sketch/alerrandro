@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone, Layers, KeyRound, QrCode,
+  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone, Layers, KeyRound, QrCode, Pin,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
@@ -37,6 +37,11 @@ type Instance = {
   // 43) - ex: "whatsapp-2", pra quem usa apps de clonagem/espaço paralelo
   // pra ter vários WhatsApp no mesmo celular. Mesmo padrão do deviceLabel.
   whatsappLabel: string | null;
+  // Marcador manual "Número em uso no Leona" (seção 45): quando true, o
+  // número aparece com destaque e sobe pro topo da lista (a ordenação já
+  // vem pronta do backend - ver instances.service.list). Puramente
+  // organizacional, não afeta a conexão real do número.
+  inUseLeona: boolean;
   createdAt: string;
   aiAutoReplyEnabled: boolean;
   aiSystemPrompt: string | null;
@@ -364,6 +369,20 @@ export default function InstancesPage() {
     }
   }
 
+  // Marcador manual "Número em uso no Leona" (seção 45) - liga/desliga com
+  // um clique só, sem confirmação (é reversível e não afeta a conexão real
+  // do número). Recarrega a lista pra já vir reordenada com esse número no
+  // topo (a ordenação é feita no backend, ver instances.service.list).
+  async function toggleInUseLeona(id: string, current: boolean) {
+    setActionError(null);
+    try {
+      await api(`/instances/${id}/in-use-leona`, { method: "PATCH", body: { inUseLeona: !current } });
+      await load();
+    } catch (err: any) {
+      setActionError(err?.message ?? "Não foi possível atualizar o marcador do Leona. Tente novamente.");
+    }
+  }
+
   function updateDraft(id: string, patch: Partial<AiDraft>) {
     setAiDraft((prev) => ({
       ...prev,
@@ -570,6 +589,23 @@ export default function InstancesPage() {
                       <h3 className="text-sm font-medium truncate">{inst.name}</h3>
                       <p className="text-xs text-muted truncate">{inst.phoneNumber ?? "—"}</p>
                     </div>
+                    {/* Marcador manual "Número em uso no Leona" (seção 45): um
+                        clique só, sem confirmação (é reversível e não afeta a
+                        conexão real do número) - marca esse número como "em
+                        uso" numa outra ferramenta (Leona) e já o joga pro
+                        topo da lista (ordenação vem pronta do backend). */}
+                    <button
+                      onClick={() => toggleInUseLeona(inst.id, inst.inUseLeona)}
+                      className={`shrink-0 p-1 rounded-lg transition-colors ${
+                        inst.inUseLeona
+                          ? "text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                          : "text-muted hover:text-white hover:bg-surfaceHover"
+                      }`}
+                      aria-label={inst.inUseLeona ? "Remover marcador Leona" : "Marcar como em uso no Leona"}
+                      title={inst.inUseLeona ? "Remover marcador \"Em uso no Leona\"" : "Marcar como \"Em uso no Leona\""}
+                    >
+                      <Pin size={16} fill={inst.inUseLeona ? "currentColor" : "none"} />
+                    </button>
                     <div className="relative shrink-0" ref={openMenu === inst.id ? menuRef : undefined}>
                       <button
                         onClick={() => setOpenMenu(openMenu === inst.id ? null : inst.id)}
@@ -671,6 +707,16 @@ export default function InstancesPage() {
                   {inst.lastError && (
                     <p className="text-[11px] text-red-400 mb-2.5 bg-red-500/5 border border-red-500/20 rounded-lg px-2 py-1.5 line-clamp-2">
                       {inst.lastError}
+                    </p>
+                  )}
+
+                  {/* Marcador manual "Número em uso no Leona" (seção 45):
+                      aviso visual só pra quem está usando o LowZap junto com
+                      o Leona lembrar rapidamente que esse número já está "em
+                      uso" lá. Não afeta conexão, mensageria nem aquecimento. */}
+                  {inst.inUseLeona && (
+                    <p className="text-[11px] text-amber-400 mb-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2 py-1.5 flex items-center gap-1.5">
+                      <Pin size={11} fill="currentColor" /> Número em uso no Leona
                     </p>
                   )}
 
