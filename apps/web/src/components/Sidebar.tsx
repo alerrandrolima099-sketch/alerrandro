@@ -44,7 +44,7 @@ export function Sidebar() {
   return (
     <>
       <button
-        className="md:hidden fixed top-4 left-4 z-40 bg-surface/90 backdrop-blur p-2 rounded-lg border border-border shadow-soft"
+        className="md:hidden fixed top-4 left-4 z-40 bg-sidebar/90 backdrop-blur p-2 rounded-lg border border-border shadow-soft"
         onClick={() => setOpen(!open)}
         aria-label="Menu"
       >
@@ -53,7 +53,7 @@ export function Sidebar() {
 
       <aside
         className={clsx(
-          "fixed md:static z-30 top-0 left-0 h-full w-64 bg-surface/95 backdrop-blur border-r border-border flex flex-col transition-transform",
+          "fixed md:static z-30 top-0 left-0 h-full w-64 bg-sidebar/95 backdrop-blur border-r border-border flex flex-col transition-transform",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
