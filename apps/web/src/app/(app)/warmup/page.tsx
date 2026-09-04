@@ -170,7 +170,7 @@ export default function WarmupPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-black font-medium rounded-lg px-4 py-2 text-sm whitespace-nowrap"
+          className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-white font-medium rounded-lg px-4 py-2 text-sm whitespace-nowrap"
         >
           <Flame size={16} /> Novo par
         </button>
@@ -293,7 +293,7 @@ export default function WarmupPage() {
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </div>
-            <button className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium">Criar</button>
+            <button className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium">Criar</button>
             <button type="button" onClick={() => setShowCreate(false)} className="text-muted text-sm px-3 py-2">
               Cancelar
             </button>
@@ -309,7 +309,7 @@ export default function WarmupPage() {
           action={
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium mx-auto"
+              className="flex items-center gap-2 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium mx-auto"
             >
               <Flame size={16} /> Novo par
             </button>
