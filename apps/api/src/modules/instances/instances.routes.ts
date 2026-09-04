@@ -114,6 +114,21 @@ instancesRouter.patch("/:id/whatsapp-label", async (req, res, next) => {
   }
 });
 
+// Marcador manual "Número em uso no Leona" (seção 45) - liga/desliga o
+// destaque + reordenação pro topo da lista de Meus Números.
+const updateInUseLeonaSchema = z.object({
+  inUseLeona: z.boolean(),
+});
+
+instancesRouter.patch("/:id/in-use-leona", async (req, res, next) => {
+  try {
+    const body = updateInUseLeonaSchema.parse(req.body);
+    res.json(await instancesService.setInUseLeona(req.tenantId!, req.params.id, body.inUseLeona));
+  } catch (err) {
+    next(err);
+  }
+});
+
 instancesRouter.delete("/:id", async (req, res, next) => {
   try {
     await instancesService.remove(req.tenantId!, req.params.id);
