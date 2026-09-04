@@ -231,9 +231,13 @@ export class GroupsService {
       });
       // A primeira instância tenta quase imediatamente; cada uma depois
       // dela espera um pouco mais que a anterior (intervalo base crescente
-      // + uma folga aleatória de até 2min), para as entradas não caírem
-      // todas juntas mesmo em lotes com muitos números.
-      const delayMs = i === 0 ? 0 : i * 60_000 + Math.floor(Math.random() * 120_000);
+      // + uma folga aleatória de até 30s), para as entradas não caírem
+      // todas juntas mesmo em lotes com muitos números. Intervalo
+      // "moderado" (pedido explícito do usuário - o intervalo anterior de
+      // 60-180s por número estava deixando lotes grandes muito lentos):
+      // ~15-45s entre um número e o próximo, ainda escalonado o
+      // suficiente para não parecer um bot entrando em massa.
+      const delayMs = i === 0 ? 0 : i * 15_000 + Math.floor(Math.random() * 30_000);
       await enqueueGroupJoin({ groupJoinId: groupJoin.id }, delayMs);
       joins.push(groupJoin);
     }
