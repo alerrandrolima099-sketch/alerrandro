@@ -39,7 +39,7 @@ export default function AdminTenantsPage() {
 
       <form onSubmit={create} className="flex gap-2 mb-6">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do novo cliente" className="flex-1 max-w-sm bg-surface border border-border rounded-lg px-3 py-2 text-sm" />
-        <button className="flex items-center gap-2 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium">
+        <button className="flex items-center gap-2 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium">
           <Plus size={16} /> Criar
         </button>
       </form>
