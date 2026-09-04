@@ -186,6 +186,12 @@ export class GroupsService {
    * inUseLeona (seção 48): mesma regra do eligibleCount em list() acima -
    * número marcado como "em uso no Leona" nunca entra em grupo por aqui,
    * mesmo que o ID tenha sido passado explicitamente em instanceIds.
+   *
+   * Já participa deste grupo (seção 49): uma instância que já tem uma
+   * entrada JOINED NESTE grupo nunca entra de novo por aqui - mesmo que o ID
+   * dela tenha sido passado explicitamente em instanceIds. Ela continua
+   * podendo entrar normalmente em QUALQUER OUTRO grupo onde ainda não
+   * esteja - o filtro é sempre por groupId, nunca global.
    */
   async joinAll(tenantId: string, groupId: string, instanceIds?: string[]) {
     const group = await prisma.group.findFirst({ where: { id: groupId, OR: [{ tenantId }, { tenantId: null }] } });
@@ -196,13 +202,22 @@ export class GroupsService {
       throw new AppError(422, "Link de convite inválido - use o link oficial no formato https://chat.whatsapp.com/...");
     }
 
+    const alreadyJoinedRows = await prisma.groupJoin.findMany({
+      where: { tenantId, groupId, status: "JOINED" },
+      select: { instanceId: true },
+    });
+    const alreadyJoinedIds = alreadyJoinedRows.map((r) => r.instanceId);
+
     const instances = await prisma.instance.findMany({
       where: {
         tenantId,
         status: "CONNECTED",
         provider: "WHATSAPP_QR",
         inUseLeona: false,
-        ...(instanceIds && instanceIds.length > 0 ? { id: { in: instanceIds } } : {}),
+        id: {
+          ...(instanceIds && instanceIds.length > 0 ? { in: instanceIds } : {}),
+          notIn: alreadyJoinedIds,
+        },
       },
     });
     if (instances.length === 0) {
