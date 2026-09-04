@@ -65,7 +65,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gradient-to-r from-primary to-primaryDark hover:brightness-110 text-black font-medium rounded-lg py-2.5 text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-glow"
+          className="w-full bg-gradient-to-r from-primary to-primaryDark hover:brightness-110 text-white font-medium rounded-lg py-2.5 text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-glow"
         >
           {loading ? (
             <>
