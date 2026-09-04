@@ -220,7 +220,7 @@ export default function AutomationEditorPage() {
         const nextNode = nextId ? byId.get(nextId) : null;
         if (nextNode) {
           const to = nextNode.position ?? { x: 0, y: 0 };
-          result.push({ from: fromCenter, to: { x: to.x + CARD_W / 2, y: to.y }, color: "#8b98a9", key: node.id });
+          result.push({ from: fromCenter, to: { x: to.x + CARD_W / 2, y: to.y }, color: "#a9a3c2", key: node.id });
         }
       }
     }
