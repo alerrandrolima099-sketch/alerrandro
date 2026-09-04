@@ -89,7 +89,7 @@ export default function AdminGroupsPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap"
+          className="flex items-center gap-2 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium whitespace-nowrap"
         >
           <Plus size={16} /> Novo grupo
         </button>
@@ -124,7 +124,7 @@ export default function AdminGroupsPage() {
             className="bg-background border border-border rounded-lg px-3 py-2 text-sm md:col-span-2"
           />
           <div className="flex gap-2 md:col-span-2">
-            <button disabled={busy} className="bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50">
+            <button disabled={busy} className="bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50">
               Salvar
             </button>
             <button type="button" onClick={() => setShowCreate(false)} className="text-muted text-sm px-3 py-2">
@@ -214,7 +214,7 @@ export default function AdminGroupsPage() {
                           <button
                             disabled={busy}
                             onClick={() => saveEdit(g.id)}
-                            className="flex items-center gap-1.5 bg-primary text-black rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+                            className="flex items-center gap-1.5 bg-primary text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
                           >
                             <Check size={14} /> Salvar
                           </button>
