@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone, Layers, KeyRound, QrCode, Pin, Rocket,
+  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone, Layers, KeyRound, QrCode, Pin, Rocket, Eye, EyeOff,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
@@ -167,6 +167,12 @@ export default function InstancesPage() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [personas, setPersonas] = useState<PersonaLite[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  // Privacidade (seção 47): borra todos os números de telefone da tela de
+  // uma vez só - útil pra tirar print ou compartilhar a tela (ex: gravação,
+  // suporte) sem expor os números reais dos clientes. Só visual, client-side
+  // (não some do HTML, só fica ilegível) - não afeta nada no backend nem
+  // precisa ser salvo, começa sempre desligado ao recarregar a página.
+  const [blurNumbers, setBlurNumbers] = useState(false);
   const [name, setName] = useState("");
   const [provider, setProvider] = useState("MOCK");
   const [busy, setBusy] = useState<string | null>(null);
@@ -470,12 +476,30 @@ export default function InstancesPage() {
           <h1 className="text-2xl font-semibold mb-1">Meus Números</h1>
           <p className="text-muted">Conecte, pause e acompanhe a saúde e o aquecimento de cada número.</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-black font-medium rounded-lg px-4 py-2 text-sm transition-colors shadow-sm shadow-primary/20"
-        >
-          <Plus size={16} /> Novo número
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Privacidade (seção 47): borra/revela todos os números de
+              telefone da tela de uma vez - pedido explícito do usuário pra
+              poder tirar print ou compartilhar a tela sem expor números
+              reais. */}
+          <button
+            onClick={() => setBlurNumbers((prev) => !prev)}
+            className={`flex items-center gap-2 border rounded-lg px-4 py-2 text-sm transition-colors ${
+              blurNumbers
+                ? "bg-primary/15 border-primary/40 text-primary"
+                : "bg-surface border-border text-muted hover:text-white hover:border-primary/40"
+            }`}
+            title={blurNumbers ? "Revelar números de telefone" : "Borrar números de telefone (privacidade)"}
+          >
+            {blurNumbers ? <EyeOff size={16} /> : <Eye size={16} />}
+            {blurNumbers ? "Números ocultos" : "Ocultar números"}
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 bg-primary hover:bg-primaryDark text-black font-medium rounded-lg px-4 py-2 text-sm transition-colors shadow-sm shadow-primary/20"
+          >
+            <Plus size={16} /> Novo número
+          </button>
+        </div>
       </div>
 
       {/* Faixa "Números disponíveis para escala" (seção 46) - resumo visual
@@ -612,7 +636,13 @@ export default function InstancesPage() {
                     <InstanceAvatar instance={inst} size={28} />
                     <div className="min-w-0 flex-1">
                       <h3 className="text-xs font-medium truncate">{inst.name}</h3>
-                      <p className="text-[11px] text-muted truncate">{inst.phoneNumber ?? "—"}</p>
+                      <p
+                        className={`text-[11px] text-muted truncate transition-all ${
+                          blurNumbers ? "blur-sm select-none" : ""
+                        }`}
+                      >
+                        {inst.phoneNumber ?? "—"}
+                      </p>
                     </div>
                     {/* Marcador manual "Número em uso no Leona" (seção 45): um
                         clique só, sem confirmação (é reversível e não afeta a
