@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
-import { Plus, Pencil, Check, X } from "lucide-react";
+import { Plus, Pencil, Check, X, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
 
@@ -73,6 +73,20 @@ export default function AdminGroupsPage() {
   async function toggleActive(g: AdminGroup) {
     await api(`/admin/groups/${g.id}`, { method: "PATCH", body: { isActive: !g.isActive } });
     await load();
+  }
+
+  // Apaga de vez (diferente de "Desativar", que só oculta mantendo o
+  // histórico) - por isso pede confirmação antes, já que não tem como
+  // desfazer depois.
+  async function remove(g: AdminGroup) {
+    if (!window.confirm(`Excluir definitivamente o grupo "${g.name}"? Essa ação não pode ser desfeita.`)) return;
+    setBusy(true);
+    try {
+      await api(`/admin/groups/${g.id}`, { method: "DELETE" });
+      await load();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -179,6 +193,13 @@ export default function AdminGroupsPage() {
                           Reativar
                         </button>
                       )}
+                      <button
+                        onClick={() => remove(g)}
+                        disabled={busy}
+                        className="flex items-center gap-1 text-xs bg-red-500/15 text-red-400 rounded-lg px-3 py-1.5 disabled:opacity-50"
+                      >
+                        <Trash2 size={12} /> Excluir
+                      </button>
                     </div>
                   </td>
                 </tr>
