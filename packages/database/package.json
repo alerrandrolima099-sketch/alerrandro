@@ -10,6 +10,7 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "ts-node prisma/seed.ts",
+    "seed:catalog": "ts-node prisma/seedCatalogGroups.ts",
     "studio": "prisma studio"
   },
   "dependencies": {
