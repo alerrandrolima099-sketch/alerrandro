@@ -287,7 +287,26 @@ export class BaileysProvider implements MessagingProvider {
             if (msg.key.fromMe) continue; // ignora eco das próprias mensagens enviadas
 
             const remoteJid = msg.key.remoteJid;
-            if (!remoteJid || remoteJid.endsWith("@g.us")) continue; // grupos não são tratados por enquanto
+            if (!remoteJid) continue;
+
+            // Mensagens de GRUPO (seção 50 - pedido explícito do usuário
+            // para contabilizar separadamente): só incrementa o contador da
+            // instância, sem passar pelo pipeline de contatos - isso
+            // evitaria criar um "Contact" de verdade pra cada participante
+            // do grupo, o que não faz sentido (a lista de contatos é só
+            // para quem de fato autorizou receber mensagens - LGPD) e
+            // dispararia automação/resposta por IA indevidamente. Conta
+            // qualquer mensagem de grupo (texto, mídia, etc.), já que o
+            // objetivo aqui é só medir volume de atividade, não o conteúdo.
+            if (remoteJid.endsWith("@g.us")) {
+              await prisma.instance
+                .update({ where: { id: instanceId }, data: { groupMessagesReceived: { increment: 1 } } })
+                .catch((err) => {
+                  // eslint-disable-next-line no-console
+                  console.error(`[BaileysProvider] falha ao contabilizar mensagem de grupo (instância ${instanceId}):`, err);
+                });
+              continue;
+            }
 
             const text =
               msg.message?.conversation ??
