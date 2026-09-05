@@ -62,4 +62,10 @@ EXPOSE 4000
 # pedisse, o comando falha (e aparece no log de deploy) em vez de aplicar
 # algo destrutivo silenciosamente - de propósito, não usamos
 # --accept-data-loss aqui.
-CMD ["sh", "-c", "cd /app && npx prisma db push --schema=packages/database/prisma/schema.prisma --skip-generate && cd /app/apps/api && node dist/main.js"]
+#
+# Em seguida, sincroniza o catálogo global de grupos (seção 40/42) via
+# seedCatalogGroups.ts: cria os grupos novos da lista e remove os que foram
+# "aposentados" nela (pedido do usuário para apagar grupos de teste do
+# catálogo sem precisar de uma conta de administrador). Isolado com
+# "|| true" de propósito - uma falha aqui nunca pode impedir a API de subir.
+CMD ["sh", "-c", "cd /app && npx prisma db push --schema=packages/database/prisma/schema.prisma --skip-generate && (npm run seed:catalog --workspace=@whatsapp-saas/database || true) && cd /app/apps/api && node dist/main.js"]
