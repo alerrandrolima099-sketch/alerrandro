@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 
@@ -29,8 +28,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-surface border border-border rounded-2xl p-8">
         <div className="flex items-center gap-2 mb-6">
-          <Image src="/logo-lowzap.png" alt="Lowzap" width={36} height={36} className="rounded-lg" />
-          <span className="font-semibold text-lg">Bem-vindo</span>
+          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center font-bold text-black">W</div>
+          <span className="font-semibold text-lg">WhatsApp SaaS</span>
         </div>
 
         <h1 className="text-xl font-semibold mb-1">Entrar</h1>
