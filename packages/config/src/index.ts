@@ -51,7 +51,15 @@ export const env = {
 
   API_PORT: Number(process.env.API_PORT ?? 4000),
   WEB_PORT: Number(process.env.WEB_PORT ?? 3000),
-  CORS_ORIGIN: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+  // Aceita uma lista separada por vírgula (ex: "https://a.com,https://b.com")
+  // em vez de uma única origem fixa - necessário porque o frontend pode ser
+  // acessado por mais de um domínio ao mesmo tempo (o domínio gerado pela
+  // Railway, o domínio próprio com e sem "www", etc). Tanto o pacote `cors`
+  // quanto o `socket.io` aceitam um array de origens permitidas aqui.
+  CORS_ORIGIN: (process.env.CORS_ORIGIN ?? "http://localhost:3000")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
 
   // Configuração inicial (Fase 33: não é um limite fixo da arquitetura, apenas seed).
   DEFAULT_SESSION_STEP_DURATION_SEC: Number(process.env.DEFAULT_SESSION_STEP_DURATION_SEC ?? 60),
