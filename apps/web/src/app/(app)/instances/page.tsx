@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone, Layers, KeyRound, QrCode, Pin, Rocket, Eye, EyeOff,
+  Plus, Wifi, WifiOff, Trash2, Bot, Sparkles, Flame, Pause, MoreVertical, Users, UsersRound, MessageCircle, TrendingUp, TrendingDown, Minus, X, AlertTriangle, Smartphone, Layers, KeyRound, QrCode, Pin, Rocket, Eye, EyeOff,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/Badge";
@@ -58,6 +58,10 @@ type Instance = {
   warmupStatus: "NONE" | "ACTIVE" | "PAUSED" | "ISSUE";
   groupsJoined: number;
   messagesReceived: number;
+  // Contador de mensagens recebidas em GRUPOS (seção 50) - separado de
+  // messagesReceived (que só conta mensagens de contatos 1:1), a pedido
+  // explícito do usuário.
+  groupMessagesReceived: number;
   evolution7d: Evolution7d;
   active: boolean;
 };
@@ -826,7 +830,11 @@ export default function InstancesPage() {
                     </div>
                     <div className="flex items-center gap-1.5">
                       <MessageCircle size={10} className="shrink-0" />
-                      {inst.messagesReceived} {pluralize(inst.messagesReceived, "mensagem recebida", "mensagens recebidas")}
+                      {inst.messagesReceived} {pluralize(inst.messagesReceived, "mensagem de contato", "mensagens de contatos")}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <UsersRound size={10} className="shrink-0" />
+                      {inst.groupMessagesReceived} {pluralize(inst.groupMessagesReceived, "mensagem de grupo", "mensagens de grupos")}
                     </div>
                   </div>
 
