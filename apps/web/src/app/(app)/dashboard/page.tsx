@@ -10,7 +10,6 @@ import { StatCard } from "@/components/StatCard";
 import { ChartCard } from "@/components/ChartCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/Badge";
-import { SeverityBadge } from "@/components/SeverityBadge";
 
 type Summary = {
   totalInstances: number;
@@ -40,15 +39,6 @@ type WarmupPairLite = {
   lastError: string | null;
 };
 
-type DashboardAlert = {
-  id: string;
-  severity: "critical" | "warning" | "success";
-  title: string;
-  message: string;
-  instanceId: string;
-  createdAt: string;
-};
-
 function formatDateLabel(iso: string) {
   const d = new Date(`${iso}T00:00:00`);
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
@@ -58,14 +48,12 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [timeseries, setTimeseries] = useState<TimeseriesPoint[] | null>(null);
   const [pairs, setPairs] = useState<WarmupPairLite[] | null>(null);
-  const [alerts, setAlerts] = useState<DashboardAlert[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api<Summary>("/dashboard/summary").then(setSummary).catch((e) => setError(e.message));
     api<TimeseriesPoint[]>("/dashboard/messages-timeseries").then(setTimeseries).catch(() => setTimeseries([]));
     api<WarmupPairLite[]>("/warmup-pairs").then(setPairs).catch(() => setPairs([]));
-    api<DashboardAlert[]>("/dashboard/alerts").then(setAlerts).catch(() => setAlerts([]));
   }, []);
 
   const chartData = (timeseries ?? []).map((p) => ({ ...p, label: formatDateLabel(p.date) }));
@@ -105,41 +93,6 @@ export default function DashboardPage() {
           <StatCard label="Números pausados" value={summary.pausedInstances} icon={PauseCircle} accent="bg-blue-500/15 text-blue-400" />
         </div>
       )}
-
-      {/* Alertas (seção 39/11) - eventos reais: conexão perdida, número
-          precisa de atenção (saúde < 75/100) ou número reconectado. */}
-      <div className="bg-surface border border-border rounded-xl p-5 mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium">Alertas</h3>
-          {alerts && alerts.length > 0 && (
-            <span className="text-xs text-muted">
-              {alerts.length} {alerts.length > 1 ? "recentes" : "recente"}
-            </span>
-          )}
-        </div>
-        {alerts === null ? (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-12 bg-surfaceHover rounded-lg animate-pulse" />
-            ))}
-          </div>
-        ) : alerts.length === 0 ? (
-          <EmptyState
-            icon={CheckCircle2}
-            title="Tudo certo por aqui"
-            description="Nenhum alerta no momento - seus números estão saudáveis."
-          />
-        ) : (
-          <div className="space-y-2">
-            {alerts.map((a) => (
-              <div key={a.id} className="flex items-start gap-3 bg-background/60 border border-border rounded-lg px-3 py-2.5">
-                <SeverityBadge severity={a.severity}>{a.title}</SeverityBadge>
-                <p className="text-sm text-muted flex-1 min-w-0">{a.message}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {!summary ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
