@@ -288,6 +288,18 @@ export class GroupsService {
     if (!group) throw new AppError(404, "Grupo do catálogo não encontrado");
     return prisma.group.update({ where: { id }, data: params });
   }
+
+  /** Apaga DE VEZ um grupo do catálogo global (pedido explícito do admin -
+   * diferente de remove()/adminUpdate({isActive:false}), que só ocultam
+   * preservando o histórico). O @@onDelete: Cascade no schema já cuida de
+   * apagar junto os Invite/GroupJoin ligados a este grupo - não precisa
+   * apagar manualmente. Restrito a tenantId nulo para nunca alcançar um
+   * grupo privado de tenant por engano. */
+  async adminRemove(id: string) {
+    const group = await prisma.group.findFirst({ where: { id, tenantId: null } });
+    if (!group) throw new AppError(404, "Grupo do catálogo não encontrado");
+    await prisma.group.delete({ where: { id } });
+  }
 }
 
 export const groupsService = new GroupsService();
