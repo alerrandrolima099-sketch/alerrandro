@@ -102,3 +102,15 @@ adminRouter.patch("/groups/:id", async (req, res, next) => {
     next(err);
   }
 });
+
+// Apaga de vez um grupo do catálogo (pedido explícito do admin - a tela já
+// tinha "Desativar", que só oculta; isso aqui remove o registro e todo o
+// histórico ligado a ele de uma vez, sem volta).
+adminRouter.delete("/groups/:id", async (req, res, next) => {
+  try {
+    await groupsService.adminRemove(req.params.id);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
