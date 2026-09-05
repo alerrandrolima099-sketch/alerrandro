@@ -20,9 +20,6 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const GROUPS: { name: string; inviteLink: string }[] = [
-  { name: "Grupo Aquecimento 01", inviteLink: "https://chat.whatsapp.com/CT640RE2H5AGnS0hzJHdSA" },
-  { name: "Grupo Aquecimento 02", inviteLink: "https://chat.whatsapp.com/GjhjTIH7cPaLuOxHEou9m8" },
-  { name: "Grupo Aquecimento 03", inviteLink: "https://chat.whatsapp.com/HC84sN6lZVe2yIzBH0EvqE" },
   { name: "Grupo Aquecimento 04", inviteLink: "https://chat.whatsapp.com/IUYqn4oGcjv15KFSaAsDDj" },
   { name: "Grupo Aquecimento 05", inviteLink: "https://chat.whatsapp.com/Iwugdc3IBIRHv4m9xpz5cA" },
   { name: "Grupo Aquecimento 06", inviteLink: "https://chat.whatsapp.com/KJPLkan7Lzx7PGEpqtTfHP" },
@@ -41,17 +38,54 @@ const GROUPS: { name: string; inviteLink: string }[] = [
   { name: "Grupo Aquecimento 19", inviteLink: "https://chat.whatsapp.com/DMoMdYlJzu3J20QZ4K3N49" },
   { name: "Grupo Aquecimento 20", inviteLink: "https://chat.whatsapp.com/LmWsQgdE96cLo3dp4HUtam" },
   { name: "Grupo Aquecimento 21", inviteLink: "https://chat.whatsapp.com/HpZntPwnPuGLhUCbi1VyM1" },
-  { name: "Grupo Aquecimento 22", inviteLink: "https://chat.whatsapp.com/EAQDC8u3IMG1TKooUV48rA" },
-  { name: "Grupo Aquecimento 23", inviteLink: "https://chat.whatsapp.com/F1iLVla1GBH3KciPxyKmzz" },
-  { name: "Grupo Aquecimento 24", inviteLink: "https://chat.whatsapp.com/IPPDohYYCHc30uAA3ongpf" },
-  { name: "Grupo Aquecimento 25", inviteLink: "https://chat.whatsapp.com/GKn1d3UueOm2MTut6WCpmL" },
-  { name: "Grupo Aquecimento 26", inviteLink: "https://chat.whatsapp.com/DjIaysD6sAOC5w0a0EI2tI" },
   // Observação: a lista original enviada tinha 28 links, mas
   // "FTTN9qRVTeL1DjT1Xv7UVS" e "DMoMdYlJzu3J20QZ4K3N49" vieram repetidos 2x
   // cada - aqui só aparecem uma vez, então o catálogo não fica duplicado.
 ];
 
+// Pedido explícito do usuário: remover de vez os grupos 01, 02, 03, 22, 23,
+// 24, 25 e 26 do catálogo (ver seção abaixo). Eles saíram da lista GROUPS
+// acima (senão o loop de criação os recriaria a cada deploy), e esta lista
+// separada faz a limpeza dos que já existem no banco - roda só enquanto
+// esses registros ainda existirem; depois de limpos, os `findFirst` abaixo
+// não encontram mais nada e viram no-op automaticamente a partir do próximo
+// deploy. Pode remover este bloco (e a função removeRetiredGroups) quando
+// não precisar mais dele.
+const RETIRED_INVITE_LINKS: string[] = [
+  "https://chat.whatsapp.com/CT640RE2H5AGnS0hzJHdSA", // Grupo Aquecimento 01
+  "https://chat.whatsapp.com/GjhjTIH7cPaLuOxHEou9m8", // Grupo Aquecimento 02
+  "https://chat.whatsapp.com/HC84sN6lZVe2yIzBH0EvqE", // Grupo Aquecimento 03
+  "https://chat.whatsapp.com/EAQDC8u3IMG1TKooUV48rA", // Grupo Aquecimento 22
+  "https://chat.whatsapp.com/F1iLVla1GBH3KciPxyKmzz", // Grupo Aquecimento 23
+  "https://chat.whatsapp.com/IPPDohYYCHc30uAA3ongpf", // Grupo Aquecimento 24
+  "https://chat.whatsapp.com/GKn1d3UueOm2MTut6WCpmL", // Grupo Aquecimento 25
+  "https://chat.whatsapp.com/DjIaysD6sAOC5w0a0EI2tI", // Grupo Aquecimento 26
+];
+
+async function removeRetiredGroups() {
+  let removed = 0;
+
+  for (const inviteLink of RETIRED_INVITE_LINKS) {
+    try {
+      const existing = await prisma.group.findFirst({ where: { tenantId: null, inviteLink } });
+      if (!existing) continue;
+      // onDelete: Cascade no schema (Invite/GroupJoin) já apaga junto o
+      // histórico de convites/entradas ligado a este grupo.
+      await prisma.group.delete({ where: { id: existing.id } });
+      removed++;
+    } catch (err) {
+      console.error(`[seedCatalogGroups] falha ao remover grupo aposentado (${inviteLink}):`, err);
+    }
+  }
+
+  if (removed > 0) {
+    console.log(`[seedCatalogGroups] ${removed} grupo(s) aposentado(s) removido(s) do catálogo.`);
+  }
+}
+
 async function main() {
+  await removeRetiredGroups();
+
   let created = 0;
   let skipped = 0;
   let failed = 0;
