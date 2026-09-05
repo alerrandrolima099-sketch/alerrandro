@@ -286,6 +286,15 @@ model Instance {
   // lógica; só acrescenta um destaque e reordena a lista de Meus Números
   // (números marcados sobem para o topo - ver orderBy em instances.service).
   inUseLeona     Boolean               @default(false)
+  // Contador de mensagens recebidas em GRUPOS por esta instância (seção 50 -
+  // pedido explícito do usuário para separar "mensagens de contatos" de
+  // "mensagens de grupos" em Meus Números). Mensagens de grupo nunca criam
+  // Contact/Conversation/Message de verdade (ver BaileysProvider) - isso
+  // poluiria a lista de contatos, pensada só para pessoas que de fato
+  // autorizaram receber mensagens (LGPD). Por isso é só um contador simples,
+  // incrementado direto a cada mensagem de grupo recebida (ignora eco de
+  // mensagens enviadas pela própria instância, igual o fluxo de contatos).
+  groupMessagesReceived Int           @default(0)
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
