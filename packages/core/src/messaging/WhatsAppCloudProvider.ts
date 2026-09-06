@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { MessagingProvider, SendResult, SendTextMessageParams, ConnectInstanceResult, SendGroupInviteParams, JoinGroupParams, JoinGroupResult } from "./MessagingProvider";
+import { MessagingProvider, SendResult, SendTextMessageParams, ConnectInstanceResult, SendGroupInviteParams, JoinGroupParams, JoinGroupResult, GetContactProfilePictureParams } from "./MessagingProvider";
 import { env } from "@whatsapp-saas/config";
 
 /**
@@ -91,6 +91,13 @@ export class WhatsAppCloudProvider implements MessagingProvider {
     // groups.service.ts joinAll), então este método não deveria ser
     // chamado na prática - existe só para cumprir a interface.
     return { status: "FAILED", error: "Entrar em grupos por link não é suportado pela API oficial (Cloud API)." };
+  }
+
+  async getContactProfilePicture(_params: GetContactProfilePictureParams): Promise<string | null> {
+    // A Cloud API oficial não expõe um endpoint para buscar a foto de
+    // perfil de outro número - existe só para cumprir a interface (ver
+    // BaileysProvider, o único que de fato suporta isso).
+    return null;
   }
 
   verifyWebhookSignature(rawBody: string, signatureHeader: string | undefined): boolean {
