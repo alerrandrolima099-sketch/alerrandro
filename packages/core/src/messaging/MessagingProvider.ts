@@ -51,6 +51,17 @@ export type JoinGroupResult = {
   error?: string;
 };
 
+// Foto de perfil do WhatsApp de um LEAD/contato (seção 44 - diferente da
+// foto da própria instância, buscada só uma vez no connectInstance). Só é
+// suportado de fato pelo BaileysProvider (WHATSAPP_QR), que tem acesso ao
+// socket vivo do protocolo não documentado do WhatsApp Web - a Cloud API
+// oficial não expõe um endpoint equivalente para buscar a foto de outro
+// número, então WhatsAppCloudProvider sempre retorna null.
+export type GetContactProfilePictureParams = {
+  instanceId: string;
+  phone: string; // dígitos do telefone do contato (sem @s.whatsapp.net)
+};
+
 export interface MessagingProvider {
   readonly name: string;
   connectInstance(instanceId: string): Promise<ConnectInstanceResult>;
@@ -58,5 +69,9 @@ export interface MessagingProvider {
   sendTextMessage(params: SendTextMessageParams): Promise<SendResult>;
   sendGroupInvite(params: SendGroupInviteParams): Promise<SendResult>;
   joinGroup(params: JoinGroupParams): Promise<JoinGroupResult>;
+  // Retorna a URL da foto, ou null se o contato não tiver foto, a
+  // privacidade do WhatsApp bloquear a busca, ou o provedor não suportar
+  // isso - nunca lança erro (best-effort, ver implementações).
+  getContactProfilePicture(params: GetContactProfilePictureParams): Promise<string | null>;
   verifyWebhookSignature(rawBody: string, signatureHeader: string | undefined): boolean;
 }
