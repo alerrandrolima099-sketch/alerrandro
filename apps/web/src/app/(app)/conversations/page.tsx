@@ -18,7 +18,7 @@ import { api, API_URL } from "@/lib/api";
 type Conversation = {
   id: string;
   automationPaused: boolean;
-  contact: { id: string; name: string; phone: string };
+  contact: { id: string; name: string; phone: string; profilePicUrl: string | null };
   instance: { id: string; name: string };
   messages: { content: string; createdAt: string }[];
 };
@@ -47,7 +47,27 @@ function avatarGradient(seed: string) {
   return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
 }
 
-function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+// Foto de perfil do lead (seção 44): quando o WhatsApp tem uma foto
+// acessível para esse contato (ver contactAvatarSync.processor.ts no
+// worker), mostra ela; senão cai no círculo com gradiente + iniciais de
+// sempre. onError cobre o caso da URL parar de funcionar depois de salva
+// (contato trocou/removeu a foto, ou mudou a privacidade) - sem isso a
+// imagem quebrada ficaria visível pra sempre em vez de voltar pro círculo.
+function Avatar({ name, photoUrl, size = 40 }: { name: string; photoUrl?: string | null; size?: number }) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  if (photoUrl && !imgFailed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photoUrl}
+        alt={`Foto de perfil de ${name}`}
+        className="rounded-full object-cover shrink-0"
+        style={{ width: size, height: size }}
+        onError={() => setImgFailed(true)}
+      />
+    );
+  }
   return (
     <div
       className={`flex items-center justify-center rounded-full bg-gradient-to-br ${avatarGradient(name)} text-white font-semibold shrink-0`}
@@ -184,7 +204,7 @@ export default function ConversationsPage() {
               selected?.id === c.id ? "bg-surfaceHover" : ""
             }`}
           >
-            <Avatar name={c.contact.name} size={38} />
+            <Avatar name={c.contact.name} photoUrl={c.contact.profilePicUrl} size={38} />
             <div className="min-w-0 flex-1">
               <div className="font-medium text-sm truncate">{c.contact.name}</div>
               <div className="text-xs text-muted">{c.contact.phone}</div>
@@ -199,7 +219,7 @@ export default function ConversationsPage() {
         <div className="flex-1 flex flex-col">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
-              <Avatar name={selected.contact.name} size={40} />
+              <Avatar name={selected.contact.name} photoUrl={selected.contact.profilePicUrl} size={40} />
               <div className="min-w-0">
                 <div className="font-medium truncate">{selected.contact.name}</div>
                 <div className="text-xs text-muted flex items-center gap-1">
