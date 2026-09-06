@@ -20,6 +20,7 @@ import {
   SendGroupInviteParams,
   JoinGroupParams,
   JoinGroupResult,
+  GetContactProfilePictureParams,
 } from "./MessagingProvider";
 import { env } from "@whatsapp-saas/config";
 import { prisma } from "@whatsapp-saas/database";
@@ -695,6 +696,26 @@ export class BaileysProvider implements MessagingProvider {
       // já é membro, grupo cheio, etc.) - repassamos a mensagem original,
       // é a informação mais específica que temos disponível.
       return { status: "FAILED", error: err?.message || "Falha desconhecida ao entrar no grupo." };
+    }
+  }
+
+  /**
+   * Foto de perfil de um LEAD/contato (seção 44) - mesmo método do Baileys
+   * já usado para a foto da própria instância em connection.update acima,
+   * só que aqui para o JID de outra pessoa. Best-effort: sem socket vivo,
+   * contato sem foto, ou privacidade do WhatsApp bloqueando a busca (bem
+   * comum - "Quem pode ver minha foto de perfil" configurado para
+   * "Ninguém" ou "Meus contatos") tudo cai em null, nunca lança erro.
+   */
+  async getContactProfilePicture(params: GetContactProfilePictureParams): Promise<string | null> {
+    const sock = this.sockets.get(params.instanceId);
+    if (!sock) return null;
+    try {
+      const digits = params.phone.replace(/\D/g, "");
+      const jid = `${digits}@s.whatsapp.net`;
+      return (await sock.profilePictureUrl(jid, "image")) ?? null;
+    } catch {
+      return null;
     }
   }
 
