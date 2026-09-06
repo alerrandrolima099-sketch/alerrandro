@@ -346,6 +346,13 @@ model Contact {
   status          ContactStatus @default(ACTIVE)
   tags            String[]      @default([])
   lastInteraction DateTime?
+  // URL da foto de perfil do WhatsApp deste lead (seção 44) - mesmo padrão
+  // já usado em Instance.profilePicUrl: buscada uma única vez (na primeira
+  // mensagem recebida dele, ver handleInboundMessage/contactAvatarSync
+  // processor), best-effort. Fica nula quando o contato não tem foto ou a
+  // privacidade do WhatsApp bloqueia a busca - o front-end cai pro círculo
+  // com iniciais nesse caso.
+  profilePicUrl   String?       @db.Text
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
