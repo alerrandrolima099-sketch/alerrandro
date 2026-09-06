@@ -30,6 +30,7 @@ export const QUEUE_NAMES = {
   INSTANCE_CONNECT: "instanceConnectQueue",
   AI_REPLY: "aiReplyQueue",
   GROUP_JOIN: "groupJoinQueue",
+  CONTACT_AVATAR_SYNC: "contactAvatarSyncQueue",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -76,4 +77,11 @@ export type AiReplyJobData = {
 
 export type GroupJoinJobData = {
   groupJoinId: string;
+};
+
+// Busca a foto de perfil do WhatsApp de um lead recém-criado (seção 44) -
+// ver handleInboundMessage e apps/worker/.../contactAvatarSync.processor.ts.
+export type ContactAvatarSyncJobData = {
+  instanceId: string;
+  contactId: string;
 };
