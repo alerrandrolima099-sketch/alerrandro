@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Smartphone, Users,
   Clock, UsersRound, ScrollText, Settings, Building2, LogOut, Menu, X,
-  ShieldCheck, User, Radio, Headphones, Bot,
+  ShieldCheck, User, Radio, Flame, Bot,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
@@ -15,7 +15,7 @@ const clientNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/instances", label: "Meus Números", icon: Smartphone },
   { href: "/conversations", label: "Conversas", icon: Radio },
-  { href: "/attendance", label: "Atendimentos", icon: Headphones },
+  { href: "/attendance", label: "Aquecimento - Mensagens", icon: Flame },
   { href: "/contacts", label: "Contatos", icon: Users },
   { href: "/personas", label: "Perfis de Conversa", icon: Bot },
   { href: "/sessions", label: "Sessões", icon: Clock },
