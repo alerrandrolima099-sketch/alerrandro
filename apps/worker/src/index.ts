@@ -8,6 +8,7 @@ import { registerInstanceConnectProcessor, resumeQrInstancesOnStartup } from "./
 import { registerAiReplyProcessor } from "./processors/aiReply.processor";
 import { registerWarmupProcessor } from "./processors/warmup.processor";
 import { registerGroupJoinProcessor } from "./processors/groupJoin.processor";
+import { registerContactAvatarSyncProcessor } from "./processors/contactAvatarSync.processor";
 
 /**
  * Entry point do worker (seção 12/apps/worker).
@@ -28,6 +29,7 @@ async function main() {
   registerAiReplyProcessor();
   registerWarmupProcessor();
   registerGroupJoinProcessor();
+  registerContactAvatarSyncProcessor();
 
   // eslint-disable-next-line no-console
   console.log("[worker] all processors registered, waiting for jobs...");
