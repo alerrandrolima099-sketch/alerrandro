@@ -25,6 +25,7 @@ import {
 import { env } from "@whatsapp-saas/config";
 import { prisma } from "@whatsapp-saas/database";
 import { handleInboundMessage } from "../inbound/handleInboundMessage";
+import { handleManualOutboundMessage } from "../inbound/handleManualOutboundMessage";
 
 /**
  * Adapter NÃO OFICIAL que simula o WhatsApp Web (biblioteca Baileys) para
@@ -70,6 +71,21 @@ export class BaileysProvider implements MessagingProvider {
   // para evitar um loop infinito caso algo fique preso nesse estado -
   // reseta assim que a conexão realmente abre.
   private restartAttempts = new Map<string, number>();
+
+  // IDs das mensagens que A PRÓPRIA PLATAFORMA mandou via sendTextMessage
+  // (seção 45) - usado para diferenciar, no evento "messages.upsert" com
+  // fromMe:true, o ECO de um envio nosso (deve ser ignorado, já foi
+  // registrado como Message ANTES de mandar) de uma resposta digitada
+  // manualmente no WhatsApp do celular (deve ser registrada como uma nova
+  // Message, ver handleManualOutboundMessage). Cada ID some sozinho depois
+  // de 30s (tempo de sobra pro eco chegar) para nunca crescer sem limite.
+  private sentMessageIds = new Set<string>();
+
+  private trackSentMessageId(id: string | null | undefined) {
+    if (!id) return;
+    this.sentMessageIds.add(id);
+    setTimeout(() => this.sentMessageIds.delete(id), 30_000).unref();
+  }
 
   private sessionDir(instanceId: string): string {
     const dir = path.join(env.BAILEYS_SESSIONS_DIR, instanceId);
@@ -281,12 +297,23 @@ export class BaileysProvider implements MessagingProvider {
       // Alimenta o mesmo pipeline (handleInboundMessage) usado pelo webhook
       // da Cloud API, então automação e resposta automática por IA
       // funcionam igual nos dois provedores.
+      //
+      // Este mesmo evento TAMBÉM dispara para mensagens ENVIADAS por este
+      // número (fromMe: true) - seção 45. Antes, essas eram todas ignoradas
+      // (comentário antigo: "ignora eco das próprias mensagens enviadas"),
+      // o que era certo para o eco de um envio feito pela PRÓPRIA
+      // plataforma (botão Enviar, automação, resposta por IA - já
+      // registrados como Message antes de mandar, ver sendTextMessage
+      // acima), mas também escondia por completo respostas que o atendente
+      // desse direto no WhatsApp do celular, fora da plataforma - a tela de
+      // Conversas nunca mostrava o lado do atendente nesse caso. Agora
+      // diferenciamos os dois usando sentMessageIds (rastreado no momento
+      // do envio, ver trackSentMessageId): eco de envio nosso é ignorado
+      // (já registrado); resposta manual do celular vira uma nova Message.
       sock.ev.on("messages.upsert", async ({ messages, type }) => {
         if (type !== "notify") return;
         for (const msg of messages) {
           try {
-            if (msg.key.fromMe) continue; // ignora eco das próprias mensagens enviadas
-
             const remoteJid = msg.key.remoteJid;
             if (!remoteJid) continue;
 
@@ -299,7 +326,10 @@ export class BaileysProvider implements MessagingProvider {
             // dispararia automação/resposta por IA indevidamente. Conta
             // qualquer mensagem de grupo (texto, mídia, etc.), já que o
             // objetivo aqui é só medir volume de atividade, não o conteúdo.
+            // Mensagens de grupo enviadas por este próprio número (fromMe)
+            // não entram na contagem, igual sempre foi.
             if (remoteJid.endsWith("@g.us")) {
+              if (msg.key.fromMe) continue;
               await prisma.instance
                 .update({ where: { id: instanceId }, data: { groupMessagesReceived: { increment: 1 } } })
                 .catch((err) => {
@@ -317,10 +347,27 @@ export class BaileysProvider implements MessagingProvider {
               null;
             if (!text) continue; // ignora mídia sem legenda, reações, etc.
 
-            const from = remoteJid.split("@")[0];
+            const digits = remoteJid.split("@")[0];
+
+            if (msg.key.fromMe) {
+              const msgId = msg.key.id ?? undefined;
+              if (msgId && this.sentMessageIds.has(msgId)) {
+                // Eco de um envio que a própria plataforma já fez - a
+                // Message correspondente já foi criada antes de enviar
+                // (conversations.service/automationEngine/aiReply
+                // processor), então não faz nada aqui.
+                this.sentMessageIds.delete(msgId);
+                continue;
+              }
+              // Sobrou: não fomos nós que mandamos por aqui - é uma
+              // resposta digitada direto no WhatsApp do celular.
+              await handleManualOutboundMessage({ instanceId, to: digits, text, providerMsgId: msgId });
+              continue;
+            }
+
             await handleInboundMessage({
               instanceId,
-              from,
+              from: digits,
               text,
               providerMsgId: msg.key.id ?? undefined,
             });
@@ -633,6 +680,11 @@ export class BaileysProvider implements MessagingProvider {
           setTimeout(() => reject(new Error("send_timeout")), 20_000)
         ),
       ]);
+      // Registra o ID ANTES de retornar (seção 45) - o eco deste envio pode
+      // chegar via "messages.upsert" a qualquer momento a partir de agora,
+      // então precisa estar rastreado antes que isso aconteça, não depois
+      // (ver comentário em sentMessageIds).
+      this.trackSentMessageId(sent?.key?.id);
       return { providerMessageId: sent?.key?.id ?? "", status: "SENT" };
     } catch (err: any) {
       if (err?.message === "send_timeout") {
