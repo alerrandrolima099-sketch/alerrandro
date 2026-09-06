@@ -10,6 +10,7 @@ import type {
   InstanceConnectJobData,
   AiReplyJobData,
   GroupJoinJobData,
+  ContactAvatarSyncJobData,
 } from "@whatsapp-saas/types";
 
 /**
@@ -77,6 +78,15 @@ export const groupJoinQueue = new Queue<GroupJoinJobData>(QUEUE_NAMES.GROUP_JOIN
   defaultJobOptions: { ...defaultJobOptions, attempts: 1 },
 });
 
+// Busca a foto de perfil do WhatsApp de um lead recém-criado (seção 44) -
+// ver handleInboundMessage. attempts:2 (não 5, como o padrão) porque essa
+// busca é best-effort: se falhar (sem foto, privacidade bloqueando), tentar
+// de novo várias vezes não muda o resultado - só adia o job saindo da fila.
+export const contactAvatarSyncQueue = new Queue<ContactAvatarSyncJobData>(QUEUE_NAMES.CONTACT_AVATAR_SYNC, {
+  connection: redisConnection,
+  defaultJobOptions: { ...defaultJobOptions, attempts: 2 },
+});
+
 export const queueEvents = {
   message: new QueueEvents(QUEUE_NAMES.MESSAGE, { connection: redisConnection }),
   session: new QueueEvents(QUEUE_NAMES.SESSION, { connection: redisConnection }),
@@ -86,6 +96,7 @@ export const queueEvents = {
   instanceConnect: new QueueEvents(QUEUE_NAMES.INSTANCE_CONNECT, { connection: redisConnection }),
   aiReply: new QueueEvents(QUEUE_NAMES.AI_REPLY, { connection: redisConnection }),
   groupJoin: new QueueEvents(QUEUE_NAMES.GROUP_JOIN, { connection: redisConnection }),
+  contactAvatarSync: new QueueEvents(QUEUE_NAMES.CONTACT_AVATAR_SYNC, { connection: redisConnection }),
 };
 
 /** Enfileira envio de mensagem com chave de idempotência (jobId = idempotencyKey). */
@@ -130,4 +141,13 @@ export async function enqueueAiReply(data: AiReplyJobData, delayMs = 0) {
  */
 export async function enqueueGroupJoin(data: GroupJoinJobData, delayMs = 0) {
   return groupJoinQueue.add("group-join", data, { delay: delayMs, jobId: data.groupJoinId });
+}
+
+/**
+ * Enfileira a busca da foto de perfil do WhatsApp de um lead (seção 44) -
+ * jobId = contactId evita duplicar a tentativa se, por algum motivo, mais
+ * de uma mensagem do mesmo contato novo chegar antes do job ser processado.
+ */
+export async function enqueueContactAvatarSync(data: ContactAvatarSyncJobData) {
+  return contactAvatarSyncQueue.add("sync-contact-avatar", data, { jobId: data.contactId });
 }
