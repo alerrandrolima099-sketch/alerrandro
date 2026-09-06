@@ -1,7 +1,7 @@
 import { prisma } from "@whatsapp-saas/database";
 import { env } from "@whatsapp-saas/config";
 import { automationEngine } from "../automation/automationEngine";
-import { enqueueAiReply } from "../queues/queueService";
+import { enqueueAiReply, enqueueContactAvatarSync } from "../queues/queueService";
 import { emitToTenant } from "../realtime/emitter";
 
 /**
@@ -63,6 +63,22 @@ export async function handleInboundMessage(params: {
       lastInteraction: new Date(),
     },
   });
+
+  // Foto de perfil do lead (seção 44): só busca na PRIMEIRA mensagem que
+  // recebemos desse contato (acabou de ser criado agora pelo upsert acima).
+  // createdAt === updatedAt é como identificamos "acabou de ser criado" sem
+  // precisar de uma segunda consulta (o retorno do upsert não diferencia
+  // create/update). Feito em fila separada (contactAvatarSyncQueue), nunca
+  // aqui de forma síncrona, para não atrasar o processamento da mensagem
+  // com uma chamada de rede ao WhatsApp - e só tenta uma vez: se falhar
+  // (contato sem foto, ou privacidade bloqueando), o avatar cai pro círculo
+  // com iniciais, igual já acontece hoje.
+  if (contact.createdAt.getTime() === contact.updatedAt.getTime()) {
+    await enqueueContactAvatarSync({ instanceId: instance.id, contactId: contact.id }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.error(`[handleInboundMessage] falha ao enfileirar busca de foto de perfil (contato ${contact.id}):`, err);
+    });
+  }
 
   let conversation = await prisma.conversation.findFirst({
     where: { instanceId: instance.id, contactId: contact.id },
