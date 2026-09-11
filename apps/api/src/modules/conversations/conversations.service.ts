@@ -17,7 +17,47 @@ export class ConversationsService {
   async getMessages(tenantId: string, conversationId: string) {
     const conversation = await prisma.conversation.findFirst({ where: { id: conversationId, tenantId } });
     if (!conversation) throw new AppError(404, "Conversa não encontrada");
+
+    // Abrir a conversa na tela marca como lida (seção 45) - só grava se
+    // havia algo pra marcar, pra não gerar updatedAt/eventos à toa.
+    if (conversation.unread) {
+      await prisma.conversation.update({ where: { id: conversationId }, data: { unread: false } });
+    }
+
     return prisma.message.findMany({ where: { conversationId }, orderBy: { createdAt: "asc" } });
+  }
+
+  /** Cria (ou reaproveita) a conversa entre uma instância e um contato, para o botão "Nova conversa" (seção 45). */
+  async start(tenantId: string, instanceId: string, contactId: string) {
+    const instance = await prisma.instance.findFirst({ where: { id: instanceId, tenantId } });
+    if (!instance) throw new AppError(404, "Instância não encontrada");
+    const contact = await prisma.contact.findFirst({ where: { id: contactId, tenantId } });
+    if (!contact) throw new AppError(404, "Contato não encontrado");
+
+    let conversation = await prisma.conversation.findFirst({ where: { instanceId, contactId } });
+    if (!conversation) {
+      conversation = await prisma.conversation.create({ data: { tenantId, instanceId, contactId } });
+      await writeLog({ tenantId, action: "CONVERSATION_STARTED", resource: "conversation", resourceId: conversation.id });
+    }
+
+    return prisma.conversation.findFirst({
+      where: { id: conversation.id },
+      include: { contact: true, instance: true, messages: { orderBy: { createdAt: "desc" }, take: 1 } },
+    });
+  }
+
+  /** Move o ticket entre as abas Aguardando/Atendendo/Resolvidos (seção 45) - ação manual do atendente. */
+  async setTicketStatus(tenantId: string, conversationId: string, status: "AGUARDANDO" | "ATENDENDO" | "RESOLVIDO") {
+    const conversation = await prisma.conversation.findFirst({ where: { id: conversationId, tenantId } });
+    if (!conversation) throw new AppError(404, "Conversa não encontrada");
+    await writeLog({
+      tenantId,
+      action: "CONVERSATION_STATUS_CHANGED",
+      resource: "conversation",
+      resourceId: conversationId,
+      metadata: { from: conversation.ticketStatus, to: status },
+    });
+    return prisma.conversation.update({ where: { id: conversationId }, data: { ticketStatus: status } });
   }
 
   /** Envio manual (atendimento humano) - passa pela mesma fila que a automação. */
@@ -41,6 +81,13 @@ export class ConversationsService {
         content,
       },
     });
+
+    // Primeira resposta manual de um ticket que ainda estava só "Aguardando"
+    // já move pra "Atendendo" sozinho (seção 45) - evita o atendente ter que
+    // lembrar de mudar a aba toda vez que começa a atender um ticket novo.
+    if (conversation.ticketStatus === "AGUARDANDO") {
+      await prisma.conversation.update({ where: { id: conversationId }, data: { ticketStatus: "ATENDENDO" } });
+    }
 
     await enqueueSendMessage({
       tenantId,
