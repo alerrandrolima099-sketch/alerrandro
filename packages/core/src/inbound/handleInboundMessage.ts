@@ -102,7 +102,19 @@ export async function handleInboundMessage(params: {
     },
   });
 
-  await prisma.conversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date() } });
+  // Tela de Conversas (seção 45): toda mensagem nova do cliente marca a
+  // conversa como não lida (liga o indicador na lista/aba "Não lidas") e,
+  // se o ticket já tinha sido dado como Resolvido, reabre automaticamente
+  // em Aguardando - sem isso um cliente respondendo dias depois de um
+  // ticket fechado ficaria escondido dentro da aba "Resolvidos".
+  await prisma.conversation.update({
+    where: { id: conversation.id },
+    data: {
+      lastMessageAt: new Date(),
+      unread: true,
+      ticketStatus: conversation.ticketStatus === "RESOLVIDO" ? "AGUARDANDO" : conversation.ticketStatus,
+    },
+  });
 
   // Tempo real (seção 36): avisa o front-end (tela de Conversas) que essa
   // conversa tem novidade, pra ele atualizar sem precisar de F5/polling.
