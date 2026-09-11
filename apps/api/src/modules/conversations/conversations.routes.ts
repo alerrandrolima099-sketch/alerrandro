@@ -15,6 +15,25 @@ conversationsRouter.get("/", async (req, res, next) => {
   }
 });
 
+// Botão "Nova conversa" da tela de Conversas (seção 45).
+conversationsRouter.post("/", async (req, res, next) => {
+  try {
+    const { instanceId, contactId } = z.object({ instanceId: z.string(), contactId: z.string() }).parse(req.body);
+    res.status(201).json(await conversationsService.start(req.tenantId!, instanceId, contactId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+conversationsRouter.post("/:id/status", async (req, res, next) => {
+  try {
+    const { status } = z.object({ status: z.enum(["AGUARDANDO", "ATENDENDO", "RESOLVIDO"]) }).parse(req.body);
+    res.json(await conversationsService.setTicketStatus(req.tenantId!, req.params.id, status));
+  } catch (err) {
+    next(err);
+  }
+});
+
 conversationsRouter.get("/:id/messages", async (req, res, next) => {
   try {
     res.json(await conversationsService.getMessages(req.tenantId!, req.params.id));
