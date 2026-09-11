@@ -36,7 +36,7 @@ import { api, API_URL } from "@/lib/api";
 
 type TicketStatus = "AGUARDANDO" | "ATENDENDO" | "RESOLVIDO";
 
-type Instance = { id: string; name: string; deviceLabel: string | null };
+type Instance = { id: string; name: string; deviceLabel: string | null; inUseLeona: boolean };
 
 type Conversation = {
   id: string;
@@ -646,9 +646,13 @@ function NewConversationModal({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Número marcado como "em uso no Leona" não fica disponível pra
+    // conversas (mesma regra do backend, ver conversations.service.ts) -
+    // filtra aqui pra nem oferecer a opção no seletor.
     api<Instance[]>("/instances").then((list) => {
-      setInstances(list);
-      if (list[0]) setInstanceId(list[0].id);
+      const available = list.filter((i) => !i.inUseLeona);
+      setInstances(available);
+      if (available[0]) setInstanceId(available[0].id);
     });
   }, []);
 
@@ -704,6 +708,11 @@ function NewConversationModal({
                 </option>
               ))}
             </select>
+            {instances.length === 0 && (
+              <p className="text-xs text-muted mt-1">
+                Nenhum número disponível - todos estão marcados como "em uso no Leona" em Meus Números.
+              </p>
+            )}
           </div>
           <div>
             <label className="text-xs text-muted block mb-1">Nome do contato</label>
