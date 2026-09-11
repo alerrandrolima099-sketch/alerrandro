@@ -384,18 +384,43 @@ model Consent {
 // Conversations / Messages
 // ---------------------------------------------------------------------------
 
+// Tela de Conversas (redesign estilo "central de tickets", seção 45): cada
+// conversa passa a ter um status de atendimento (aba em que ela aparece na
+// lista) e um número de ticket estável para o atendente referenciar. Nada
+// disso é automação por trás - é 100% controlado pelo atendente na tela
+// (mover de aba, marcar como resolvida), com duas exceções feitas no
+// backend por bom senso de UX (ver handleInboundMessage.ts e
+// conversations.service.ts): uma mensagem nova do cliente reabre um ticket
+// RESOLVIDO de volta para AGUARDANDO, e a primeira resposta manual do
+// atendente move AGUARDANDO -> ATENDENDO automaticamente.
+enum TicketStatus {
+  AGUARDANDO
+  ATENDENDO
+  RESOLVIDO
+}
+
 model Conversation {
-  id                String   @id @default(uuid())
+  id                String       @id @default(uuid())
   tenantId          String
-  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   instanceId        String
-  instance          Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  instance          Instance     @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   contactId         String
-  contact           Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  automationPaused  Boolean  @default(false)
+  contact           Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  automationPaused  Boolean      @default(false)
+  // Aba/coluna da tela de Conversas (seção 45) - ver comentário do enum acima.
+  ticketStatus      TicketStatus @default(AGUARDANDO)
+  // Número estável exibido como "#..." no cabeçalho da conversa (seção 45) -
+  // só decorativo/identificador para o atendente, sequencial global (não
+  // reinicia por tenant), gerado pelo próprio banco.
+  ticketNumber      Int          @unique @default(autoincrement())
+  // true quando há mensagem do cliente ainda não vista pelo atendente nesta
+  // tela (seção 45) - liga o indicador da aba "Não lidas" e o ponto na
+  // lista. Zerado ao abrir a conversa (ver conversations.service.getMessages).
+  unread            Boolean      @default(false)
   lastMessageAt     DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   messages Message[]
   sessions Session[]
@@ -403,6 +428,7 @@ model Conversation {
   @@index([tenantId])
   @@index([instanceId])
   @@index([contactId])
+  @@index([tenantId, ticketStatus])
   @@map("conversations")
 }
 
