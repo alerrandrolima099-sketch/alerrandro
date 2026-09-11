@@ -8,7 +8,15 @@ import { randomUUID } from "crypto";
 export class ConversationsService {
   async list(tenantId: string) {
     return prisma.conversation.findMany({
-      where: { tenantId },
+      // Número marcado como "em uso no Leona" (Instance.inUseLeona, seção
+      // 45/48) fica de fora da tela de Conversas - mesma regra já aplicada
+      // pra elegibilidade de grupos (ver groups.service.ts): enquanto o
+      // usuário estiver operando aquele número por fora, pela ferramenta
+      // Leona, ele não aparece aqui pra evitar os dois lados mexendo na
+      // mesma conversa ao mesmo tempo. Nada é apagado - a conversa só some
+      // da lista enquanto o marcador estiver ligado, e volta a aparecer se
+      // for desmarcado em Meus Números.
+      where: { tenantId, instance: { inUseLeona: false } },
       include: { contact: true, instance: true, messages: { orderBy: { createdAt: "desc" }, take: 1 } },
       orderBy: { updatedAt: "desc" },
     });
@@ -31,6 +39,9 @@ export class ConversationsService {
   async start(tenantId: string, instanceId: string, contactId: string) {
     const instance = await prisma.instance.findFirst({ where: { id: instanceId, tenantId } });
     if (!instance) throw new AppError(404, "Instância não encontrada");
+    if (instance.inUseLeona) {
+      throw new AppError(422, 'Este número está marcado como "em uso no Leona" - não pode ser usado em Conversas enquanto estiver marcado.');
+    }
     const contact = await prisma.contact.findFirst({ where: { id: contactId, tenantId } });
     if (!contact) throw new AppError(404, "Contato não encontrado");
 
@@ -64,11 +75,17 @@ export class ConversationsService {
   async sendManualMessage(tenantId: string, conversationId: string, content: string) {
     const conversation = await prisma.conversation.findFirst({
       where: { id: conversationId, tenantId },
-      include: { contact: true },
+      include: { contact: true, instance: true },
     });
     if (!conversation) throw new AppError(404, "Conversa não encontrada");
     if (conversation.contact.status !== "ACTIVE") {
       throw new AppError(422, "Contato sem consentimento ativo - envio bloqueado");
+    }
+    // Trava de segurança (seção 45): mesma regra do list() acima - se o
+    // número foi marcado "em uso no Leona" depois que a tela já estava
+    // aberta, bloqueia o envio em vez de confiar só no filtro da listagem.
+    if (conversation.instance.inUseLeona) {
+      throw new AppError(422, 'Este número está marcado como "em uso no Leona" - envio bloqueado enquanto estiver marcado.');
     }
 
     const message = await prisma.message.create({
